@@ -1,63 +1,34 @@
-# 멀티 스테이지 빌드를 위한 베이스 이미지
-FROM python:3.11-slim as builder
+# 경량 Python 이미지
+FROM python:3.11-slim
 
-# 빌드 단계에서 필요한 패키지 설치
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# 가상환경 생성
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# pip 업그레이드 및 빌드 도구 설치
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# Python 의존성 파일 복사 및 설치
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 프로덕션 이미지
-FROM python:3.11-slim as production
-
-# 보안을 위한 비루트 사용자 생성
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# 시스템 패키지 설치 (curl은 헬스체크용)
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# 가상환경 복사
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# 작업 디렉토리 설정
+# 작업 디렉토리
 WORKDIR /app
 
-# 애플리케이션 코드 복사
-COPY app/ ./app/
+# 필수 시스템 패키지 (필요시만 설치)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 파일 권한 설정
-RUN chown -R appuser:appuser /app
+# pip 최신화
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# 비루트 사용자로 전환
-USER appuser
+# gateway/requirements.txt 복사 후 설치
+COPY gateway/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 포트 노출
-EXPOSE 8000
+# gateway 소스 복사
+COPY gateway/ ./app/
 
 # 환경 변수 설정
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# 헬스 체크
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Railway에서 PORT 환경변수를 주입 → 없으면 기본값 8000
+ENV PORT=8000
 
-# 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
+# 포트 노출
+EXPOSE $PORT
 
+# FastAPI 실행 (uvicorn)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
