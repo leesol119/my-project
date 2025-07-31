@@ -14,8 +14,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 # pip 업그레이드 및 빌드 도구 설치
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Python 의존성 파일 복사 및 설치
-COPY requirements.txt .
+# Python 의존성 파일 복사 및 설치 (gateway 폴더 기준)
+COPY gateway/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 프로덕션 이미지
@@ -37,8 +37,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 애플리케이션 코드 복사
-COPY app/ ./app/
+# 애플리케이션 코드 복사 (gateway 폴더 기준)
+COPY gateway/app ./app/
 
 # 파일 권한 설정
 RUN chown -R appuser:appuser /app
@@ -56,7 +56,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 # 헬스 체크
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
