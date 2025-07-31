@@ -1,62 +1,27 @@
-# 멀티 스테이지 빌드를 위한 베이스 이미지
 FROM python:3.11-slim as builder
 
-# 빌드 단계에서 필요한 패키지 설치
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# 가상환경 생성
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# pip 업그레이드 및 빌드 도구 설치
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# Python 의존성 파일 복사 및 설치 (gateway 폴더 기준)
-COPY gateway/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 프로덕션 이미지
-FROM python:3.11-slim as production
-
-# 보안을 위한 비루트 사용자 생성
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# 시스템 패키지 설치 (curl은 헬스체크용)
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# 가상환경 복사
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# 작업 디렉토리 설정
 WORKDIR /app
 
-# 애플리케이션 코드 복사 (gateway 폴더 기준)
-COPY gateway/app ./app/
+RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# 파일 권한 설정
-RUN chown -R appuser:appuser /app
+# gateway/requirements.txt가 아니라, 프로젝트 루트에 requirements.txt가 있으면 COPY requirements.txt .
+COPY gateway/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 비루트 사용자로 전환
-USER appuser
+FROM python:3.11-slim as production
 
-# 포트 노출
+
 EXPOSE 8000
 
-# 환경 변수 설정
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# 헬스 체크
+# Railway는 PORT 환경변수를 자동으로 주입함
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# 애플리케이션 실행
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
