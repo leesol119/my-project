@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛍️ Product Service</h1>
+        <p class="status">✅ Service is running</p>
+        
+        <h2>Available Endpoints:</h2>
+        <div class="endpoint">GET /api/products - 상품 목록 조회</div>
+        <div class="endpoint">GET /api/products/{id} - 특정 상품 조회</div>
+        <div class="endpoint">POST /api/products - 상품 생성</div>
+        <div class="endpoint">PUT /api/products/{id} - 상품 정보 수정</div>
+        <div class="endpoint">DELETE /api/products/{id} - 상품 삭제</div>
+        
+        <h2>Health Check:</h2>
+        <div class="endpoint">GET /health - 서비스 상태 확인</div>
+        
+        <p><strong>Service URL:</strong> http://localhost:8002</p>
+        <p><strong>Gateway Proxy:</strong> http://localhost:8000/proxy/product-service</p>
+    </div>
+</body>
+</html> 

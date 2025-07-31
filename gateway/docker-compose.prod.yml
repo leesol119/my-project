@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # MSA Gateway 서비스 (프로덕션)
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: msa-gateway-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+networks:
+  msa-network:
+    driver: bridge 
