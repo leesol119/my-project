@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import logging
 import uvicorn
 from contextlib import asynccontextmanager
@@ -10,6 +11,13 @@ from .router.discovery_router import router as discovery_router
 from .router.proxy_router import router as proxy_router
 from .router.user_router import router as user_router
 from .domain.discovery.controller.proxy_controller import proxy_controller
+
+# Pydantic 모델 정의
+class InputData(BaseModel):
+    currentInput: str
+    timestamp: str
+    inputHistory: list[str]
+    totalInputs: int
 
 # 로깅 설정
 logging.basicConfig(
@@ -146,6 +154,33 @@ async def health_check():
         "service": "gateway",
         "version": "1.0.0"
     }
+
+
+# 프론트엔드 입력 데이터 수신 엔드포인트
+@app.post("/api/input")
+async def receive_input_data(input_data: InputData):
+    """프론트엔드에서 전송된 입력 데이터를 수신"""
+    try:
+        logger.info(f"Received input data: {input_data.currentInput}")
+        logger.info(f"Total inputs: {input_data.totalInputs}")
+        logger.info(f"Input history: {input_data.inputHistory}")
+        
+        # 여기에 추가 처리 로직을 구현할 수 있습니다
+        # 예: 데이터베이스 저장, 다른 서비스로 전달 등
+        
+        return {
+            "status": "success",
+            "message": "입력 데이터가 성공적으로 수신되었습니다",
+            "received_data": {
+                "currentInput": input_data.currentInput,
+                "timestamp": input_data.timestamp,
+                "totalInputs": input_data.totalInputs,
+                "history_length": len(input_data.inputHistory)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error processing input data: {e}")
+        raise HTTPException(status_code=500, detail="입력 데이터 처리 중 오류가 발생했습니다")
 
 
 if __name__ == "__main__":

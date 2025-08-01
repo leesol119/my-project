@@ -2,11 +2,34 @@
 
 import { useState } from 'react';
 
+// API 서비스 함수
+const sendInputData = async (inputData: any) => {
+  try {
+    const response = await fetch('http://localhost:8000/api/input', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(inputData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error sending data:', error);
+    throw error;
+  }
+};
+
 export default function Home() {
   const [inputValue, setInputValue] = useState('');
   const [inputHistory, setInputHistory] = useState<string[]>([]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (inputValue.trim()) {
       // 새로운 입력값을 히스토리에 추가
@@ -23,11 +46,23 @@ export default function Home() {
       
       // JSON을 보기 좋게 포맷팅하여 alert 표시
       alert(JSON.stringify(inputData, null, 2));
+      
+      // 백엔드로 데이터 전송
+      try {
+        const result = await sendInputData(inputData);
+        console.log('백엔드 응답:', result);
+        // 성공 메시지를 추가로 표시할 수도 있습니다
+        // alert(`백엔드 전송 성공: ${result.message}`);
+      } catch (error) {
+        console.error('백엔드 전송 실패:', error);
+        alert('백엔드로 데이터 전송 중 오류가 발생했습니다.');
+      }
+      
       setInputValue('');
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault(); // 기본 submit 방지
       if (inputValue.trim()) {
@@ -45,6 +80,18 @@ export default function Home() {
         
         // JSON을 보기 좋게 포맷팅하여 alert 표시
         alert(JSON.stringify(inputData, null, 2));
+        
+        // 백엔드로 데이터 전송
+        try {
+          const result = await sendInputData(inputData);
+          console.log('백엔드 응답:', result);
+          // 성공 메시지를 추가로 표시할 수도 있습니다
+          // alert(`백엔드 전송 성공: ${result.message}`);
+        } catch (error) {
+          console.error('백엔드 전송 실패:', error);
+          alert('백엔드로 데이터 전송 중 오류가 발생했습니다.');
+        }
+        
         setInputValue('');
       }
     }
