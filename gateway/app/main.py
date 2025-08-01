@@ -86,8 +86,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 프로덕션에서는 특정 도메인으로 제한
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 app.add_middleware(
@@ -156,14 +157,39 @@ async def health_check():
     }
 
 
+# CORS preflight 요청 처리
+@app.options("/api/input")
+async def options_input():
+    """CORS preflight 요청 처리"""
+    return {"message": "OK"}
+
 # 프론트엔드 입력 데이터 수신 엔드포인트
 @app.post("/api/input")
 async def receive_input_data(input_data: InputData):
     """프론트엔드에서 전송된 입력 데이터를 수신"""
+    logger.info("🚗🚗🚗🚗receive_input_data 에 진입 ")
     try:
-        logger.info(f"Received input data: {input_data.currentInput}")
-        logger.info(f"Total inputs: {input_data.totalInputs}")
-        logger.info(f"Input history: {input_data.inputHistory}")
+        # JSON 형태로 전체 데이터 출력 (이미지와 동일한 형태)
+        import json
+        json_data = {
+            "currentInput": input_data.currentInput,
+            "timestamp": input_data.timestamp,
+            "inputHistory": input_data.inputHistory,
+            "totalInputs": input_data.totalInputs
+        }
+        
+        # 보기 좋게 포맷팅된 JSON 출력
+        formatted_json = json.dumps(json_data, indent=2, ensure_ascii=False)
+        logger.info("=" * 50)
+        logger.info("프론트엔드에서 전송된 JSON 데이터:")
+        logger.info("=" * 50)
+        logger.info(formatted_json)
+        logger.info("=" * 50)
+        
+        # 개별 필드 정보도 함께 출력
+        logger.info(f"현재 입력: {input_data.currentInput}")
+        logger.info(f"총 입력 횟수: {input_data.totalInputs}")
+        logger.info(f"입력 히스토리: {input_data.inputHistory}")
         
         # 여기에 추가 처리 로직을 구현할 수 있습니다
         # 예: 데이터베이스 저장, 다른 서비스로 전달 등
