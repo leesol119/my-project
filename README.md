@@ -203,6 +203,36 @@ docker-compose up --build -d
 
 이 프로젝트는 MIT 라이선스 하에 배포됩니다.
 
+## 🚀 배포
+
+### Railway 배포
+
+1. **Railway CLI 설치**
+   ```bash
+   npm install -g @railway/cli
+   ```
+
+2. **프로젝트 배포**
+   ```bash
+   railway login
+   railway init
+   railway up
+   ```
+
+3. **환경 변수 설정**
+   ```bash
+   railway variables set NODE_ENV=production
+   railway variables set NEXT_PUBLIC_API_URL=https://your-gateway-url.railway.app
+   ```
+
+### 배포 파일 설명
+
+- `nixpacks.toml`: Nixpacks 빌드 설정
+- `railway.toml`: Railway 배포 설정
+- `package.json`: Node.js 프로젝트 설정
+- `Procfile`: 프로세스 시작 명령
+- `app.json`: 앱 메타데이터
+
 ## 📞 연락처
 
 프로젝트 링크: [https://github.com/your-username/eripotter](https://github.com/your-username/eripotter) 

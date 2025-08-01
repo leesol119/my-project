@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_18", "python311", "curl"]
+
+[phases.install]
+cmds = [
+  "cd frontend && npm ci --only=production",
+  "cd ../gateway && pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = [
+  "cd frontend && npm run build"
+]
+
+[start]
+cmd = "cd frontend && npm start"
+
+[variables]
+NODE_ENV = "production" 

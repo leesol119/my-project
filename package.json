@@ -1,0 +1,19 @@
+{
+  "name": "eripotter",
+  "version": "1.0.0",
+  "description": "EriPotter - 마이크로서비스 아키텍처 프로젝트",
+  "main": "frontend/src/app/page.tsx",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm start",
+    "lint": "cd frontend && npm run lint"
+  },
+  "keywords": ["nextjs", "fastapi", "microservices", "docker"],
+  "author": "EriPotter Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+} 

@@ -1,0 +1,21 @@
+{
+  "name": "eripotter",
+  "description": "EriPotter - 마이크로서비스 아키텍처 프로젝트",
+  "repository": "https://github.com/your-username/eripotter",
+  "keywords": ["nextjs", "fastapi", "microservices", "docker"],
+  "env": {
+    "NODE_ENV": {
+      "description": "Node.js 환경 설정",
+      "value": "production"
+    },
+    "NEXT_PUBLIC_API_URL": {
+      "description": "API Gateway URL",
+      "value": "https://your-gateway-url.railway.app"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+} 
