@@ -3,7 +3,12 @@
 import { useState } from 'react';
 
 // API 서비스 함수
-const sendInputData = async (inputData: any) => {
+const sendInputData = async (inputData: {
+  currentInput: string;
+  timestamp: string;
+  inputHistory: string[];
+  totalInputs: number;
+}) => {
   try {
     const response = await fetch('http://localhost:8000/api/input', {
       method: 'POST',
@@ -49,12 +54,11 @@ export default function Home() {
       
       // 백엔드로 데이터 전송
       try {
-        const result = await sendInputData(inputData);
-        console.log('백엔드 응답:', result);
-        // 성공 메시지를 추가로 표시할 수도 있습니다
+        await sendInputData(inputData);
+        // 성공 시 추가 처리 (필요시 주석 해제)
+        // const result = await sendInputData(inputData);
         // alert(`백엔드 전송 성공: ${result.message}`);
-      } catch (error) {
-        console.error('백엔드 전송 실패:', error);
+      } catch {
         alert('백엔드로 데이터 전송 중 오류가 발생했습니다.');
       }
       
@@ -83,12 +87,11 @@ export default function Home() {
         
         // 백엔드로 데이터 전송
         try {
-          const result = await sendInputData(inputData);
-          console.log('백엔드 응답:', result);
-          // 성공 메시지를 추가로 표시할 수도 있습니다
+          await sendInputData(inputData);
+          // 성공 시 추가 처리 (필요시 주석 해제)
+          // const result = await sendInputData(inputData);
           // alert(`백엔드 전송 성공: ${result.message}`);
-        } catch (error) {
-          console.error('백엔드 전송 실패:', error);
+        } catch {
           alert('백엔드로 데이터 전송 중 오류가 발생했습니다.');
         }
         

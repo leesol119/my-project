@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL, // 환경변수에서 가져오기
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000', // 기본값 설정
   headers: {
     'Content-Type': 'application/json',
   },
