@@ -4,12 +4,26 @@ import { useState } from 'react';
 
 export default function Home() {
   const [inputValue, setInputValue] = useState('');
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (inputValue.trim()) {
-      alert(`입력하신 내용: ${inputValue}`);
-      setInputValue(''); // 입력 필드 초기화
+      // 새로운 입력값을 히스토리에 추가
+      const newHistory = [...inputHistory, inputValue];
+      setInputHistory(newHistory);
+      
+      // JSON 형태로 데이터 구성
+      const inputData = {
+        currentInput: inputValue,
+        timestamp: new Date().toISOString(),
+        inputHistory: newHistory,
+        totalInputs: newHistory.length
+      };
+      
+      // JSON을 보기 좋게 포맷팅하여 alert 표시
+      alert(JSON.stringify(inputData, null, 2));
+      setInputValue('');
     }
   };
 
@@ -17,7 +31,20 @@ export default function Home() {
     if (e.key === 'Enter') {
       e.preventDefault(); // 기본 submit 방지
       if (inputValue.trim()) {
-        alert(`입력하신 내용: ${inputValue}`);
+        // 새로운 입력값을 히스토리에 추가
+        const newHistory = [...inputHistory, inputValue];
+        setInputHistory(newHistory);
+        
+        // JSON 형태로 데이터 구성
+        const inputData = {
+          currentInput: inputValue,
+          timestamp: new Date().toISOString(),
+          inputHistory: newHistory,
+          totalInputs: newHistory.length
+        };
+        
+        // JSON을 보기 좋게 포맷팅하여 alert 표시
+        alert(JSON.stringify(inputData, null, 2));
         setInputValue('');
       }
     }
