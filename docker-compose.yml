@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eripotter-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+    depends_on:
+      - gateway
+
+  # MSA Gateway
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile.dev
+    container_name: eripotter-gateway
+    ports:
+      - "8080:8000"
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./gateway/app:/app/app
+      - ./gateway/requirements.txt:/app/requirements.txt
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Sample User Service
+  user-service:
+    image: nginx:alpine
+    container_name: eripotter-user-service
+    ports:
+      - "8001:80"
+    volumes:
+      - ./gateway/sample-services/user-service:/usr/share/nginx/html
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+  # Sample Product Service
+  product-service:
+    image: nginx:alpine
+    container_name: eripotter-product-service
+    ports:
+      - "8002:80"
+    volumes:
+      - ./gateway/sample-services/product-service:/usr/share/nginx/html
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+  # Sample Order Service
+  order-service:
+    image: nginx:alpine
+    container_name: eripotter-order-service
+    ports:
+      - "8003:80"
+    volumes:
+      - ./gateway/sample-services/order-service:/usr/share/nginx/html
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+networks:
+  eripotter-network:
+    driver: bridge 
