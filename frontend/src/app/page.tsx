@@ -1,6 +1,24 @@
 'use client';
 
+import { useState } from 'react';
+
 export default function Home() {
+  const [inputValue, setInputValue] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      alert(`입력하신 내용: ${inputValue}`);
+      setInputValue(''); // 입력 필드 초기화
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSubmit(e as any);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
       {/* 메인 컨테이너 */}
@@ -13,7 +31,7 @@ export default function Home() {
         </div>
 
         {/* 입력 필드 */}
-        <div className="relative">
+        <form onSubmit={handleSubmit} className="relative">
           <div className="flex items-center bg-white border border-gray-300 rounded-2xl px-4 py-3 shadow-sm hover:border-gray-400 transition-colors">
             {/* 왼쪽 아이콘들 */}
             <div className="flex items-center space-x-3 mr-3">
@@ -36,26 +54,35 @@ export default function Home() {
             {/* 입력 필드 */}
             <input
               type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
               placeholder="무엇이든 물어보세요"
               className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-500 text-base"
             />
 
             {/* 오른쪽 아이콘들 */}
             <div className="flex items-center space-x-3 ml-3">
-              <button className="text-gray-600 hover:text-gray-800 transition-colors">
+              <button 
+                type="submit"
+                className="text-gray-600 hover:text-gray-800 transition-colors"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
               </button>
               
-              <button className="text-gray-600 hover:text-gray-800 transition-colors">
+              <button 
+                type="button"
+                className="text-gray-600 hover:text-gray-800 transition-colors"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
               </button>
             </div>
           </div>
-        </div>
+        </form>
 
         {/* 추가 정보 */}
         <div className="mt-6 text-center">
