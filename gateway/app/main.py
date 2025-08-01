@@ -33,38 +33,7 @@ async def lifespan(app: FastAPI):
     # 시작 시 실행
     logger.info("Starting Gateway Service...")
     
-    # 샘플 서비스 등록 (개발용)
-    try:
-        from .domain.discovery.model.service_registry import ServiceInfo, ServiceStatus
-        
-        # 샘플 서비스들 등록
-        sample_services = [
-            ServiceInfo(
-                service_name="user-service",
-                base_url="http://localhost:8001",
-                health_check_url="http://localhost:8001/health",
-                metadata={"version": "1.0.0", "environment": "development"}
-            ),
-            ServiceInfo(
-                service_name="product-service", 
-                base_url="http://localhost:8002",
-                health_check_url="http://localhost:8002/health",
-                metadata={"version": "1.0.0", "environment": "development"}
-            ),
-            ServiceInfo(
-                service_name="order-service",
-                base_url="http://localhost:8003", 
-                health_check_url="http://localhost:8003/health",
-                metadata={"version": "1.0.0", "environment": "development"}
-            )
-        ]
-        
-        for service in sample_services:
-            await proxy_controller.register_service(service)
-            logger.info(f"Registered sample service: {service.service_name}")
-            
-    except Exception as e:
-        logger.warning(f"Failed to register sample services: {e}")
+
     
     yield
     
