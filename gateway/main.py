@@ -9,7 +9,6 @@ from contextlib import asynccontextmanager
 
 from .router.discovery_router import router as discovery_router
 from .router.proxy_router import router as proxy_router
-from .router.user_router import router as user_router
 from .domain.discovery.controller.proxy_controller import proxy_controller
 
 # Pydantic 모델 정의
@@ -126,7 +125,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 # 라우터 등록
 app.include_router(discovery_router)
 app.include_router(proxy_router)
-app.include_router(user_router)
 
 
 # 루트 엔드포인트
