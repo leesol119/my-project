@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # Frontend 서비스
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eripotter-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+  # Gateway 서비스
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile.dev
+    container_name: msa-gateway
+    ports:
+      - "8080:8000"
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./gateway/app:/app/app
+      - ./gateway/requirements.txt:/app/requirements.txt
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 샘플 사용자 서비스 (테스트용)
+  user-service:
+    image: nginx:alpine
+    container_name: user-service
+    ports:
+      - "8001:80"
+    volumes:
+      - ./gateway/sample-services/user-service:/usr/share/nginx/html
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+  # 샘플 상품 서비스 (테스트용)
+  product-service:
+    image: nginx:alpine
+    container_name: product-service
+    ports:
+      - "8002:80"
+    volumes:
+      - ./gateway/sample-services/product-service:/usr/share/nginx/html
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+  # 샘플 주문 서비스 (테스트용)
+  order-service:
+    image: nginx:alpine
+    container_name: order-service
+    ports:
+      - "8003:80"
+    volumes:
+      - ./gateway/sample-services/order-service:/usr/share/nginx/html
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+
+networks:
+  eripotter-network:
+    driver: bridge 
