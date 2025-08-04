@@ -13,8 +13,8 @@ COPY gateway/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY gateway/app/ ./app/
-COPY gateway/main.py ./main.py
+COPY gateway/ ./gateway/
+RUN mv gateway/main.py ./main.py && mv gateway/app ./app
 
 # 포트 노출
 EXPOSE 8000
