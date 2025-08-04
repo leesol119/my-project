@@ -1,0 +1,161 @@
+name: eripotter
+
+services:
+  gateway:
+    build: ../gateway
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../gateway:/app
+    env_file:
+      - ../gateway/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - assesment-service
+      - chatbot-service
+      - monitoring-service
+      - report-service
+      - request-service
+      - response-service
+      - redis
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - app-network
+
+  assesment-service:
+    build: ./assesment-service
+    container_name: assesment-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./assesment-service:/app
+    env_file:
+      - ./assesment-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  chatbot-service:
+    build: ./chatbot-service
+    container_name: chatbot-service
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./chatbot-service:/app
+    env_file:
+      - ./chatbot-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  monitoring-service:
+    build: ./monitoring-service
+    container_name: monitoring-service
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./monitoring-service:/app
+    env_file:
+      - ./monitoring-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  report-service:
+    build: ./report-service
+    container_name: report-service
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./report-service:/app
+    env_file:
+      - ./report-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  request-service:
+    build: ./request-service
+    container_name: request-service
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./request-service:/app
+    env_file:
+      - ./request-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  response-service:
+    build: ./response-service
+    container_name: response-service
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./response-service:/app
+    env_file:
+      - ./response-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    restart: always
+
+  n8n:
+    build:
+      context: ../n8n
+    container_name: n8n-container
+    ports:
+      - "5678:5678"
+    env_file:
+      - ../n8n/.env
+    volumes:
+      - ../n8n_data:/home/node/.n8n
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  n8n_data:
