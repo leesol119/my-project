@@ -2,13 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 시스템 패키지 설치 (한 번에 처리)
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+# 시스템 패키지 설치 (Railway 호환성을 위해 단순화)
+RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
 
 # pip 업그레이드
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
