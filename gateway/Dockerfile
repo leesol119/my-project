@@ -6,11 +6,11 @@ WORKDIR /app
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # requirements.txt 복사 및 의존성 설치
-COPY gateway/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY gateway/ ./gateway/
+COPY . .
 RUN mv gateway/main.py ./main.py && mv gateway/app ./app
 
 # 포트 노출
