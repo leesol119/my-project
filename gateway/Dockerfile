@@ -25,5 +25,5 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 # 헬스 체크 제거 (Railway에서 문제가 될 수 있음)
 
-# 애플리케이션 실행 (쉘 확장을 사용하여 환경변수 치환)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+# 애플리케이션 실행 (환경변수 치환을 위한 쉘 사용)
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port \$PORT"
