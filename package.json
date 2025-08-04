@@ -1,0 +1,41 @@
+{
+  "name": "eripotter",
+  "version": "1.0.0",
+  "description": "Eripotter MSA Project with Frontend and Backend",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm start",
+    "lint": "cd frontend && npm run lint",
+    "type-check": "cd frontend && npm run type-check",
+    "install-frontend": "cd frontend && npm install",
+    "install-all": "npm run install-frontend",
+    "vercel-build": "npm run install-frontend && npm run build"
+  },
+  "workspaces": [
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/eripotter.git"
+  },
+  "keywords": [
+    "nextjs",
+    "fastapi",
+    "microservices",
+    "docker",
+    "railway",
+    "vercel"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
