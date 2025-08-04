@@ -10,7 +10,7 @@ const sendInputData = async (inputData: {
   totalInputs: number;
 }) => {
   try {
-    const response = await fetch('http://localhost:8000/api/input', {
+    const response = await fetch('http://localhost:8080/api/input', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
