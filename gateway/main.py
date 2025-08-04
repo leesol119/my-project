@@ -7,9 +7,9 @@ import logging
 import uvicorn
 from contextlib import asynccontextmanager
 
-from .router.discovery_router import router as discovery_router
-from .router.proxy_router import router as proxy_router
-from .domain.discovery.controller.proxy_controller import proxy_controller
+from app.router.discovery_router import router as discovery_router
+from app.router.proxy_router import router as proxy_router
+from app.domain.discovery.controller.proxy_controller import proxy_controller
 
 # Pydantic 모델 정의
 class InputData(BaseModel):
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     
     # 샘플 서비스 등록 (개발용)
     try:
-        from .domain.discovery.model.service_registry import ServiceInfo, ServiceStatus
+        from app.domain.discovery.model.service_registry import ServiceInfo, ServiceStatus
         
         # 샘플 서비스들 등록
         sample_services = [
