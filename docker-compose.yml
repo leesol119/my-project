@@ -22,7 +22,7 @@ services:
   gateway:
     build:
       context: ./gateway
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: msa-gateway
     ports:
       - "8080:8000"
