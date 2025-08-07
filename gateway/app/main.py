@@ -6,25 +6,45 @@ from typing import Optional, List
 from fastapi import APIRouter, FastAPI, Request, UploadFile, File, Query, HTTPException, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import os
 import logging
 import sys
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from fastapi import Request
 
-from app.router.auth_router import auth_router
-from http://app.www.google.jwt_auth_middleware import AuthMiddleware
-from app.domain.discovery.model.service_discovery import ServiceDiscovery
-from app.domain.discovery.model.service_type import ServiceType
-from app.common.utility.constant.settings import Settings
-from app.common.utility.factory.response_factory import ResponseFactory
+# 현재 구조에 맞는 import (존재하는 모듈만)
+try:
+    from app.domain.discovery.model.service_discovery import ServiceDiscovery
+    from app.domain.discovery.model.service_type import ServiceType
+    from app.common.utility.constant.settings import Settings
+    from app.common.utility.factory.response_factory import ResponseFactory
+except ImportError as e:
+    print(f"Import error: {e}")
+    # 임시로 기본 클래스 정의
+    class ServiceDiscovery:
+        def __init__(self, service_type):
+            self.service_type = service_type
+        
+        async def request(self, method, path, headers=None, body=None, files=None, params=None, data=None):
+            return {"status": "mock_response"}
+    
+    class ServiceType:
+        pass
+    
+    class Settings:
+        pass
+    
+    class ResponseFactory:
+        @staticmethod
+        def create_response(response):
+            return response
 
 if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv()
 
 logging.basicConfig(
-    level=http://logging.INFO,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
@@ -32,15 +52,18 @@ logger = logging.getLogger("gateway_api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    http://logger.info("🚀 Gateway API 서비스 시작")
+    logger.info("🚀 Gateway API 서비스 시작")
     # Settings 초기화 및 앱 state에 등록
-    app.state.settings = Settings()
+    try:
+        app.state.settings = Settings()
+    except:
+        app.state.settings = None
     yield
-    http://logger.info("🛑 Gateway API 서비스 종료")
+    logger.info("🛑 Gateway API 서비스 종료")
 
 app = FastAPI(
     title="Gateway API",
-    description="Gateway API for http://ausikor.com",
+    description="Gateway API for EriPotter Project",
     version="0.1.0",
     docs_url="/docs",
     lifespan=lifespan
@@ -52,37 +75,117 @@ app.add_middleware(
         "http://localhost:3000",  # 로컬 접근
         "http://127.0.0.1:3000",  # 로컬 IP 접근
         "http://frontend:3000",   # Docker 내부 네트워크
-
     ], # 프론트엔드 주소 명시
     allow_credentials=True,  # HttpOnly 쿠키 사용을 위해 필수
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.add_middleware(AuthMiddleware)
+# AuthMiddleware가 없는 경우를 위한 임시 처리
+try:
+    from app.domain.auth.middleware.jwt_auth_middleware import AuthMiddleware
+    app.add_middleware(AuthMiddleware)
+except ImportError:
+    logger.warning("AuthMiddleware not found, skipping authentication middleware")
+
+# 기본 루트 경로
+@app.get("/")
+async def root():
+    return {"message": "Gateway API", "version": "0.1.0", "status": "running"}
+
+# 루트 레벨 헬스 체크
+@app.get("/health", summary="테스트 엔드포인트")
+async def health_check():
+    return {"status": "healthy!"}
+
+# 로그인 요청 모델
+class LoginRequest(BaseModel):
+    user_id: str
+    user_pw: str
+
+# 회원가입 요청 모델
+class SignUpRequest(BaseModel):
+    user_id: str
+    user_pw: int  # bigint
+    company_id: Optional[str] = None  # null 허용
+
+# 전역 변수로 최근 로그인 데이터 저장
+latest_login_data = None
+# 전역 변수로 최근 회원가입 데이터 저장
+latest_signup_data = None
+
+@app.post("/login", summary="로그인")
+async def login(request: LoginRequest):
+    global latest_login_data
+    latest_login_data = request.dict()
+    logger.info(f"로그인 요청 받음: {latest_login_data}")
+    return {"result": "로그인 성공!", "received_data": latest_login_data}
+
+@app.post("/signup", summary="회원가입")
+async def signup(request: SignUpRequest):
+    global latest_signup_data
+    latest_signup_data = request.dict()
+    logger.info(f"회원가입 요청 받음: {latest_signup_data}")
+    return {"result": "회원가입 성공!", "received_data": latest_signup_data}
+
+@app.get("/login", summary="최근 로그인 데이터 확인")
+async def get_latest_login():
+    global latest_login_data
+    if latest_login_data:
+        return latest_login_data
+    else:
+        return {
+            "message": "아직 로그인 데이터가 없습니다",
+            "description": "프론트엔드에서 로그인 버튼을 클릭하면 데이터가 표시됩니다"
+        }
+
+@app.get("/signup", summary="최근 회원가입 데이터 확인")
+async def get_latest_signup():
+    global latest_signup_data
+    if latest_signup_data:
+        return latest_signup_data
+    else:
+        return {
+            "message": "아직 회원가입 데이터가 없습니다",
+            "description": "프론트엔드에서 회원가입 버튼을 클릭하면 데이터가 표시됩니다"
+        }
 
 gateway_router = APIRouter(prefix="/api/v1", tags=["Gateway API"])
-gateway_router.include_router(auth_router)
-# 필요시: gateway_router.include_router(user_router)
+
+# 라우터 등록 (현재 존재하는 라우터만)
+try:
+    from app.router.assesment_router import assesment_router
+    gateway_router.include_router(assesment_router)
+except ImportError:
+    logger.warning("assesment_router not found")
+
+try:
+    from app.router.chatbot_router import chatbot_router
+    gateway_router.include_router(chatbot_router)
+except ImportError:
+    logger.warning("chatbot_router not found")
+
+try:
+    from app.router.monitoring_router import monitoring_router
+    gateway_router.include_router(monitoring_router)
+except ImportError:
+    logger.warning("monitoring_router not found")
+
 app.include_router(gateway_router)
 
 # 🪡🪡🪡 파일이 필요한 서비스 목록 (현재는 없음)
 FILE_REQUIRED_SERVICES = set()
 
-@gateway_router.get("/health", summary="테스트 엔드포인트")
-async def health_check():
-    return {"status": "healthy!"}
-
 @gateway_router.get("/{service}/{path:path}", summary="GET 프록시")
 async def proxy_get(
-    service: ServiceType, 
+    service: str, 
     path: str, 
     request: Request
 ):
     try:
         factory = ServiceDiscovery(service_type=service)
         
-        # 헤더 전달 (JWT 및 사용자 ID - 미들웨어에서 이미 X-User-Id 헤더가 추가됨)
+        # 헤더 전달
         headers = dict(request.headers)
         
         response = await factory.request(
@@ -98,10 +201,10 @@ async def proxy_get(
             status_code=500
         )
 
-# 파일 업로드 및 일반 JSON 요청 모두 처리, JWT 적용
+# 파일 업로드 및 일반 JSON 요청 모두 처리
 @gateway_router.post("/{service}/{path:path}", summary="POST 프록시")
 async def proxy_post(
-    service: ServiceType, 
+    service: str, 
     path: str,
     request: Request,
     file: Optional[UploadFile] = None,
@@ -109,9 +212,9 @@ async def proxy_post(
 ):
     try:
         # 로깅
-        http://logger.info(f"🌈 POST 요청 받음: 서비스={service}, 경로={path}")
+        logger.info(f"🌈 POST 요청 받음: 서비스={service}, 경로={path}")
         if file:
-            http://logger.info(f"파일명: {file.filename}, 시트 이름: {sheet_names if sheet_names else '없음'}")
+            logger.info(f"파일명: {file.filename}, 시트 이름: {sheet_names if sheet_names else '없음'}")
 
         # 서비스 팩토리 생성
         factory = ServiceDiscovery(service_type=service)
@@ -122,7 +225,7 @@ async def proxy_post(
         body = None
         data = None
         
-        # 헤더 전달 (JWT 및 사용자 ID - 미들웨어에서 이미 X-User-Id 헤더가 추가됨)
+        # 헤더 전달
         headers = dict(request.headers)
         
         # 파일이 필요한 서비스 처리
@@ -135,11 +238,11 @@ async def proxy_post(
             
             # 파일이 제공된 경우 처리
             if file:
-                file_content = await http://file.read()
+                file_content = await file.read()
                 files = {'file': (file.filename, file_content, file.content_type)}
                 
                 # 파일 위치 되돌리기 (다른 코드에서 다시 읽을 수 있도록)
-                await http://file.seek(0)
+                await file.seek(0)
             
             # 시트 이름이 제공된 경우 처리
             if sheet_names:
@@ -150,7 +253,7 @@ async def proxy_post(
                 body = await request.body()
                 if not body:
                     # body가 비어있는 경우도 허용
-                    http://logger.info("요청 본문이 비어 있습니다.")
+                    logger.info("요청 본문이 비어 있습니다.")
             except Exception as e:
                 logger.warning(f"요청 본문 읽기 실패: {str(e)}")
                 
@@ -182,13 +285,13 @@ async def proxy_post(
             status_code=500
         )
 
-# PUT - 일반 동적 라우팅 (JWT 적용)
+# PUT - 일반 동적 라우팅
 @gateway_router.put("/{service}/{path:path}", summary="PUT 프록시")
-async def proxy_put(service: ServiceType, path: str, request: Request):
+async def proxy_put(service: str, path: str, request: Request):
     try:
         factory = ServiceDiscovery(service_type=service)
         
-        # 헤더 전달 (JWT 및 사용자 ID - 미들웨어에서 이미 X-User-Id 헤더가 추가됨)
+        # 헤더 전달
         headers = dict(request.headers)
         
         response = await factory.request(
@@ -205,13 +308,13 @@ async def proxy_put(service: ServiceType, path: str, request: Request):
             status_code=500
         )
 
-# DELETE - 일반 동적 라우팅 (JWT 적용)
+# DELETE - 일반 동적 라우팅
 @gateway_router.delete("/{service}/{path:path}", summary="DELETE 프록시")
-async def proxy_delete(service: ServiceType, path: str, request: Request):
+async def proxy_delete(service: str, path: str, request: Request):
     try:
         factory = ServiceDiscovery(service_type=service)
         
-        # 헤더 전달 (JWT 및 사용자 ID - 미들웨어에서 이미 X-User-Id 헤더가 추가됨)
+        # 헤더 전달
         headers = dict(request.headers)
         
         response = await factory.request(
@@ -228,13 +331,13 @@ async def proxy_delete(service: ServiceType, path: str, request: Request):
             status_code=500
         )
 
-# PATCH - 일반 동적 라우팅 (JWT 적용)
+# PATCH - 일반 동적 라우팅
 @gateway_router.patch("/{service}/{path:path}", summary="PATCH 프록시")
-async def proxy_patch(service: ServiceType, path: str, request: Request):
+async def proxy_patch(service: str, path: str, request: Request):
     try:
         factory = ServiceDiscovery(service_type=service)
         
-        # 헤더 전달 (JWT 및 사용자 ID - 미들웨어에서 이미 X-User-Id 헤더가 추가됨)
+        # 헤더 전달
         headers = dict(request.headers)
         
         response = await factory.request(
@@ -251,26 +354,16 @@ async def proxy_patch(service: ServiceType, path: str, request: Request):
             status_code=500
         )
 
-# ✅ 메인 라우터 등록 (동적 라우팅)
-# app.include_router(gateway_router) # 중복된 라우터 등록 제거
-
 # 404 에러 핸들러
-@app
-.exception_handler(404)
+@app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
     return JSONResponse(
         status_code=404,
         content={"detail": "요청한 리소스를 찾을 수 없습니다."}
     )
 
-# 기본 루트 경로
-@app
-.get("/")
-async def root():
-    return {"message": "Gateway API", "version": "0.1.0"}
-
-# ✅ 서버 실행
+# 서버 실행
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("SERVICE_PORT", 8080))
-    http://uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
