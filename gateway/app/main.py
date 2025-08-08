@@ -71,10 +71,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 모든 도메인 허용 (개발 중)
+    allow_origins=["*"],  # 모든 도메인 허용
     allow_credentials=False,  # credentials 비활성화
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # AuthMiddleware가 없는 경우를 위한 임시 처리
@@ -93,6 +94,12 @@ async def root():
 @app.get("/health", summary="테스트 엔드포인트")
 async def health_check():
     return {"status": "healthy!"}
+
+# CORS 프리플라이트 요청 처리
+@app.options("/{path:path}")
+async def options_handler(path: str, request: Request):
+    logger.info(f"🔄 CORS 프리플라이트 요청: {request.method} {path}")
+    return {"message": "CORS preflight handled"}
 
 # 로그인 요청 모델
 class LoginRequest(BaseModel):
@@ -121,7 +128,9 @@ async def login(request: LoginRequest):
 async def signup(request: SignUpRequest):
     global latest_signup_data
     latest_signup_data = request.dict()
-    logger.info(f"회원가입 요청 받음: {latest_signup_data}")
+    logger.info(f"🚀 회원가입 요청 받음: {latest_signup_data}")
+    logger.info(f"📊 요청 헤더: {request.headers}")
+    logger.info(f"🌐 클라이언트 IP: {request.client.host if request.client else 'Unknown'}")
     return {"result": "회원가입 성공!", "received_data": latest_signup_data}
 
 @app.get("/login", summary="최근 로그인 데이터 확인")
