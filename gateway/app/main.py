@@ -172,18 +172,22 @@ async def login(request: LoginRequest):
 async def signup_options_handler(request: Request):
     logger.info(f"🔄 /signup CORS 프리플라이트 요청")
     logger.info(f"📊 Origin: {request.headers.get('origin', 'Unknown')}")
-    
-    from fastapi.responses import Response
-    response = Response(status_code=200, content={})
-    
-    # Origin 헤더를 그대로 Access-Control-Allow-Origin에 설정
+
     origin = request.headers.get('origin', '')
-    response.headers["Access-Control-Allow-Origin"] = origin
-    
-    # 필수 CORS 헤더 설정
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
-    response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
-    response.headers["Access-Control-Max-Age"] = "86400"
+
+    # ✅ dict를 반환하려면 JSONResponse를 써야 함
+    resp = JSONResponse(status_code=200, content={})
+
+    # CORS 헤더
+    resp.headers["Access-Control-Allow-Origin"] = origin
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    resp.headers["Access-Control-Allow-Headers"] = (
+        "Accept, Accept-Language, Content-Language, Content-Type, Authorization, "
+        "X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+    )
+    resp.headers["Access-Control-Max-Age"] = "86400"
+    # credentials 안 쓸 거면 굳이 추가 안 해도 됨. 필요하면 아래 주석 해제
+    # resp.headers["Access-Control-Allow-Credentials"] = "false"
     
     logger.info(f"✅ /signup CORS 응답 헤더 설정 완료")
     return response
