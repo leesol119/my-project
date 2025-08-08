@@ -86,7 +86,13 @@ async def root():
 # 루트 레벨 헬스 체크
 @app.get("/health", summary="테스트 엔드포인트")
 async def health_check():
-    return {"status": "healthy!"}
+    logger.info("🏥 헬스체크 요청 받음")
+    return {"status": "healthy!", "service": "gateway", "timestamp": "2024-08-08"}
+
+# 최소 헬스체크 (Railway용)
+@app.get("/health/minimal")
+async def minimal_health_check():
+    return {"status": "ok"}
 
 # CORS 프리플라이트 요청 처리
 @app.options("/{path:path}")
