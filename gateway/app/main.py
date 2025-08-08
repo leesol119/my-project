@@ -48,16 +48,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 미들웨어 설정
+# CORS 미들웨어 설정 - eripotter.com 도메인 허용
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://eripotter.com",
         "https://www.eripotter.com",
-        "https://*.vercel.app",
+        "https://eripotter.com/",
+        "https://www.eripotter.com/",
+        "https://*.eripotter.com",
+        "https://*.eripotter.com/*",
         "http://localhost:3000",
         "http://localhost:3001",
-        "*"
     ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
@@ -104,9 +106,23 @@ async def options_handler(path: str, request: Request):
     from fastapi.responses import Response
     response = Response(status_code=200)
     
-    # 명시적 CORS 헤더 설정
-    origin = request.headers.get('origin', '*')
-    response.headers["Access-Control-Allow-Origin"] = origin
+    # eripotter.com 도메인 체크 및 CORS 헤더 설정
+    origin = request.headers.get('origin', '')
+    allowed_origins = [
+        "https://eripotter.com",
+        "https://www.eripotter.com",
+        "https://eripotter.com/",
+        "https://www.eripotter.com/",
+    ]
+    
+    # eripotter.com 도메인인 경우에만 허용
+    if origin in allowed_origins or origin.startswith("https://") and "eripotter.com" in origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        logger.info(f"✅ eripotter.com 도메인 허용: {origin}")
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "https://www.eripotter.com"
+        logger.info(f"⚠️ 기본 도메인으로 설정: {origin}")
+    
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
     response.headers["Access-Control-Max-Age"] = "86400"
@@ -149,9 +165,23 @@ async def signup(request: SignUpRequest):
     from fastapi.responses import JSONResponse
     response = JSONResponse(content={"result": "회원가입 성공!", "received_data": latest_signup_data})
     
-    # CORS 헤더 추가
-    origin = request.headers.get('origin', '*')
-    response.headers["Access-Control-Allow-Origin"] = origin
+    # eripotter.com 도메인 체크 및 CORS 헤더 추가
+    origin = request.headers.get('origin', '')
+    allowed_origins = [
+        "https://eripotter.com",
+        "https://www.eripotter.com",
+        "https://eripotter.com/",
+        "https://www.eripotter.com/",
+    ]
+    
+    # eripotter.com 도메인인 경우에만 허용
+    if origin in allowed_origins or origin.startswith("https://") and "eripotter.com" in origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        logger.info(f"✅ eripotter.com 도메인 허용: {origin}")
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "https://www.eripotter.com"
+        logger.info(f"⚠️ 기본 도메인으로 설정: {origin}")
+    
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
     
