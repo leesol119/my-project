@@ -13,32 +13,11 @@ import sys
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 
-# 현재 구조에 맞는 import (존재하는 모듈만)
-try:
-    from app.domain.discovery.model.service_discovery import ServiceDiscovery
-    from app.domain.discovery.model.service_type import ServiceType
-    from app.common.utility.constant.settings import Settings
-    from app.common.utility.factory.response_factory import ResponseFactory
-except ImportError as e:
-    print(f"Import error: {e}")
-    # 임시로 기본 클래스 정의
-    class ServiceDiscovery:
-        def __init__(self, service_type):
-            self.service_type = service_type
-        
-        async def request(self, method, path, headers=None, body=None, files=None, params=None, data=None):
-            return {"status": "mock_response"}
-    
-    class ServiceType:
-        pass
-    
-    class Settings:
-        pass
-    
-    class ResponseFactory:
-        @staticmethod
-        def create_response(response):
-            return response
+# 모듈 import
+from app.domain.discovery.model.service_discovery import ServiceDiscovery
+from app.domain.discovery.model.service_type import ServiceType
+from app.common.utility.constant.settings import Settings
+from app.common.utility.factory.response_factory import ResponseFactory
 
 if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv()
@@ -73,9 +52,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 모든 도메인 허용
     allow_credentials=False,  # credentials 비활성화
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_methods=["*"],  # 모든 메서드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
+    expose_headers=["*"],  # 모든 헤더 노출
+    max_age=86400,  # 프리플라이트 캐시 24시간
 )
 
 # AuthMiddleware가 없는 경우를 위한 임시 처리
@@ -99,7 +79,12 @@ async def health_check():
 @app.options("/{path:path}")
 async def options_handler(path: str, request: Request):
     logger.info(f"🔄 CORS 프리플라이트 요청: {request.method} {path}")
-    return {"message": "CORS preflight handled"}
+    from fastapi.responses import Response
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # 로그인 요청 모델
 class LoginRequest(BaseModel):
