@@ -51,7 +51,7 @@ app = FastAPI(
 # CORS 미들웨어 설정 - 프로덕션 + 프리뷰 도메인 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https://(www\.)?eripotter\.com(/.*)?$",
+    allow_origin_regex=r"^https://(www\.)?eripotter\.com$",
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
     allow_headers=[
@@ -167,10 +167,31 @@ async def login(request: LoginRequest):
     logger.info(f"로그인 요청 받음: {latest_login_data}")
     return {"result": "로그인 성공!", "received_data": latest_login_data}
 
+# /signup 경로에 대한 OPTIONS 프리플라이트 요청 처리
+@app.options("/signup")
+async def signup_options_handler(request: Request):
+    logger.info(f"🔄 /signup CORS 프리플라이트 요청")
+    logger.info(f"📊 Origin: {request.headers.get('origin', 'Unknown')}")
+    
+    from fastapi.responses import Response
+    response = Response(status_code=200, content={})
+    
+    # Origin 헤더를 그대로 Access-Control-Allow-Origin에 설정
+    origin = request.headers.get('origin', '')
+    response.headers["Access-Control-Allow-Origin"] = origin
+    
+    # 필수 CORS 헤더 설정
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    
+    logger.info(f"✅ /signup CORS 응답 헤더 설정 완료")
+    return response
+
 @app.post("/signup", summary="회원가입")
-async def signup(request: SignUpRequest):
+async def signup(request_data: SignUpRequest, request: Request):
     global latest_signup_data
-    latest_signup_data = request.dict()
+    latest_signup_data = request_data.dict()
     logger.info(f"🚀 회원가입 요청 받음: {latest_signup_data}")
     logger.info(f"📊 요청 헤더: {request.headers}")
     logger.info(f"🌐 클라이언트 IP: {request.client.host if request.client else 'Unknown'}")
