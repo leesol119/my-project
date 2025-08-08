@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 
 export default function CompanyTypePage() {
   const router = useRouter();
@@ -17,7 +16,6 @@ export default function CompanyTypePage() {
     };
     
     alert(JSON.stringify(surveyData, null, 2));
-    console.log('Company type selected:', surveyData);
     
     // 선택 후 다음 페이지로 이동 (예: 대시보드)
     setTimeout(() => {

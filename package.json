@@ -4,21 +4,21 @@
   "description": "Eripotter MSA Project with Frontend and Backend",
   "private": true,
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "start": "cd frontend && npm start",
-    "lint": "cd frontend && npm run lint",
-    "type-check": "cd frontend && npm run type-check",
-    "install-frontend": "cd frontend && npm install",
-    "install-all": "npm run install-frontend",
-    "vercel-build": "npm run install-frontend && npm run build"
+    "dev": "cd frontend && pnpm run dev",
+    "build": "cd frontend && pnpm run build",
+    "start": "cd frontend && pnpm start",
+    "lint": "cd frontend && pnpm run lint",
+    "type-check": "cd frontend && pnpm run type-check",
+    "install-frontend": "cd frontend && pnpm install",
+    "install-all": "pnpm run install-frontend",
+    "vercel-build": "pnpm run install-frontend && pnpm run build"
   },
   "workspaces": [
     "frontend"
   ],
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "pnpm": ">=8.0.0"
   },
   "repository": {
     "type": "git",
