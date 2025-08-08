@@ -18,6 +18,18 @@ if ! railway whoami &> /dev/null; then
     exit 1
 fi
 
+# 현재 디렉토리 확인
+echo "📁 현재 디렉토리: $(pwd)"
+echo "📁 파일 목록:"
+ls -la
+
+# Dockerfile 존재 확인
+if [ -f "Dockerfile" ]; then
+    echo "✅ Dockerfile 발견"
+else
+    echo "❌ Dockerfile이 없습니다. NIXPACKS 빌더를 사용합니다."
+fi
+
 # 프로젝트 초기화 (이미 초기화된 경우 스킵)
 if [ ! -f ".railway" ]; then
     echo "📦 Railway 프로젝트 초기화..."

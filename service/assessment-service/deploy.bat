@@ -22,6 +22,18 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM 현재 디렉토리 확인
+echo 📁 현재 디렉토리: %CD%
+echo 📁 파일 목록:
+dir
+
+REM Dockerfile 존재 확인
+if exist "Dockerfile" (
+    echo ✅ Dockerfile 발견
+) else (
+    echo ❌ Dockerfile이 없습니다. NIXPACKS 빌더를 사용합니다.
+)
+
 REM 프로젝트 초기화 (이미 초기화된 경우 스킵)
 if not exist ".railway" (
     echo 📦 Railway 프로젝트 초기화...
