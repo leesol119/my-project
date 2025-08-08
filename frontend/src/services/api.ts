@@ -1,10 +1,16 @@
 import axios from 'axios';
 
-// Railway에 배포된 gateway 서비스 URL을 기본값으로 설정
-const RAILWAY_GATEWAY_URL = 'https://eripotter-gateway-production.up.railway.app';
+// Railway에 배포된 gateway 서비스 URL
+const RAILWAY_GATEWAY_URL = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL || 'https://my-project-production-0a50.up.railway.app';
+
+// 환경변수가 설정되지 않았을 때 경고
+if (!process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL) {
+  console.warn('⚠️ NEXT_PUBLIC_RAILWAY_GATEWAY_URL 환경변수가 설정되지 않았습니다!');
+  console.warn('Vercel 대시보드에서 환경변수를 설정해주세요.');
+}
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || RAILWAY_GATEWAY_URL,
+  baseURL: RAILWAY_GATEWAY_URL,
   headers: {
     'Content-Type': 'application/json',
   },
