@@ -175,10 +175,10 @@ async def signup_options_handler(request: Request):
 
     origin = request.headers.get('origin', '')
 
-    # ✅ dict를 반환하려면 JSONResponse를 써야 함
+    # 빈 JSON 응답 반환
     resp = JSONResponse(status_code=200, content={})
 
-    # CORS 헤더
+    # CORS 헤더 설정
     resp.headers["Access-Control-Allow-Origin"] = origin
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     resp.headers["Access-Control-Allow-Headers"] = (
@@ -186,11 +186,9 @@ async def signup_options_handler(request: Request):
         "X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
     )
     resp.headers["Access-Control-Max-Age"] = "86400"
-    # credentials 안 쓸 거면 굳이 추가 안 해도 됨. 필요하면 아래 주석 해제
-    # resp.headers["Access-Control-Allow-Credentials"] = "false"
     
     logger.info(f"✅ /signup CORS 응답 헤더 설정 완료")
-    return response
+    return resp
 
 @app.post("/signup", summary="회원가입")
 async def signup(request_data: SignUpRequest, request: Request):
@@ -199,10 +197,6 @@ async def signup(request_data: SignUpRequest, request: Request):
     logger.info(f"🚀 회원가입 요청 받음: {latest_signup_data}")
     logger.info(f"📊 요청 헤더: {request.headers}")
     logger.info(f"🌐 클라이언트 IP: {request.client.host if request.client else 'Unknown'}")
-    
-    from fastapi.responses import JSONResponse
-    import re
-    response = JSONResponse(content={"result": "회원가입 성공!", "received_data": latest_signup_data})
     
     # Origin 헤더 가져오기
     origin = request.headers.get('origin', '')
@@ -233,6 +227,9 @@ async def signup(request_data: SignUpRequest, request: Request):
     elif origin in ["http://localhost:3000", "http://localhost:3001"]:
         is_allowed = True
         logger.info(f"✅ 로컬 개발 도메인 허용: {origin}")
+    
+    # 응답 생성
+    response = JSONResponse(content={"result": "회원가입 성공!", "received_data": latest_signup_data})
     
     # CORS 헤더 설정
     if is_allowed:
