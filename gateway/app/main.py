@@ -51,12 +51,7 @@ app = FastAPI(
 # CORS 미들웨어 설정 - 프로덕션 + 프리뷰 도메인 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.eripotter.com",  # 프로덕션 도메인
-        "https://www.eripotter.com/",  # 프로덕션 루트 경로
-        "http://localhost:3000",  # 로컬 개발
-        "http://localhost:3001",  # 로컬 개발
-    ],
+    allow_origin_regex=r"^https://(www\.)?eripotter\.com(/.*)?$",
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
     allow_headers=[
@@ -74,6 +69,7 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=86400,
 )
+
 
 # AuthMiddleware가 없는 경우를 위한 임시 처리
 try:
