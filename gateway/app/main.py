@@ -48,18 +48,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 미들웨어 설정 - eripotter.com 도메인 허용
+# CORS 미들웨어 설정 - 프로덕션 + 프리뷰 도메인 허용
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://eripotter.com",
-        "https://www.eripotter.com",
-        "https://eripotter.com/",
-        "https://www.eripotter.com/",
-        "https://*.eripotter.com",
-        "https://*.eripotter.com/*",
-        "http://localhost:3000",
-        "http://localhost:3001",
+        "https://www.eripotter.com",  # 프로덕션 도메인
+        "https://www.eripotter.com/",  # 프로덕션 루트 경로
+        "http://localhost:3000",  # 로컬 개발
+        "http://localhost:3001",  # 로컬 개발
     ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
@@ -104,24 +100,45 @@ async def options_handler(path: str, request: Request):
     logger.info(f"📊 User-Agent: {request.headers.get('user-agent', 'Unknown')}")
     
     from fastapi.responses import Response
+    import re
     response = Response(status_code=200)
     
-    # eripotter.com 도메인 체크 및 CORS 헤더 설정
+    # Origin 헤더 가져오기
     origin = request.headers.get('origin', '')
-    allowed_origins = [
-        "https://eripotter.com",
+    
+    # 프로덕션 도메인 체크
+    production_domains = [
         "https://www.eripotter.com",
-        "https://eripotter.com/",
         "https://www.eripotter.com/",
     ]
     
-    # eripotter.com 도메인인 경우에만 허용
-    if origin in allowed_origins or origin.startswith("https://") and "eripotter.com" in origin:
+    # Vercel 프리뷰 도메인 정규식 패턴
+    vercel_preview_pattern = r'^https://.*\.vercel\.app$'
+    
+    # 도메인 허용 여부 확인
+    is_allowed = False
+    
+    # 1. 프로덕션 도메인 체크
+    if origin in production_domains:
+        is_allowed = True
+        logger.info(f"✅ 프로덕션 도메인 허용: {origin}")
+    
+    # 2. Vercel 프리뷰 도메인 체크 (정규식)
+    elif re.match(vercel_preview_pattern, origin):
+        is_allowed = True
+        logger.info(f"✅ Vercel 프리뷰 도메인 허용: {origin}")
+    
+    # 3. 로컬 개발 도메인 체크
+    elif origin in ["http://localhost:3000", "http://localhost:3001"]:
+        is_allowed = True
+        logger.info(f"✅ 로컬 개발 도메인 허용: {origin}")
+    
+    # CORS 헤더 설정
+    if is_allowed:
         response.headers["Access-Control-Allow-Origin"] = origin
-        logger.info(f"✅ eripotter.com 도메인 허용: {origin}")
     else:
         response.headers["Access-Control-Allow-Origin"] = "https://www.eripotter.com"
-        logger.info(f"⚠️ 기본 도메인으로 설정: {origin}")
+        logger.warning(f"⚠️ 허용되지 않은 도메인: {origin}")
     
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
@@ -163,24 +180,45 @@ async def signup(request: SignUpRequest):
     logger.info(f"🌐 클라이언트 IP: {request.client.host if request.client else 'Unknown'}")
     
     from fastapi.responses import JSONResponse
+    import re
     response = JSONResponse(content={"result": "회원가입 성공!", "received_data": latest_signup_data})
     
-    # eripotter.com 도메인 체크 및 CORS 헤더 추가
+    # Origin 헤더 가져오기
     origin = request.headers.get('origin', '')
-    allowed_origins = [
-        "https://eripotter.com",
+    
+    # 프로덕션 도메인 체크
+    production_domains = [
         "https://www.eripotter.com",
-        "https://eripotter.com/",
         "https://www.eripotter.com/",
     ]
     
-    # eripotter.com 도메인인 경우에만 허용
-    if origin in allowed_origins or origin.startswith("https://") and "eripotter.com" in origin:
+    # Vercel 프리뷰 도메인 정규식 패턴
+    vercel_preview_pattern = r'^https://.*\.vercel\.app$'
+    
+    # 도메인 허용 여부 확인
+    is_allowed = False
+    
+    # 1. 프로덕션 도메인 체크
+    if origin in production_domains:
+        is_allowed = True
+        logger.info(f"✅ 프로덕션 도메인 허용: {origin}")
+    
+    # 2. Vercel 프리뷰 도메인 체크 (정규식)
+    elif re.match(vercel_preview_pattern, origin):
+        is_allowed = True
+        logger.info(f"✅ Vercel 프리뷰 도메인 허용: {origin}")
+    
+    # 3. 로컬 개발 도메인 체크
+    elif origin in ["http://localhost:3000", "http://localhost:3001"]:
+        is_allowed = True
+        logger.info(f"✅ 로컬 개발 도메인 허용: {origin}")
+    
+    # CORS 헤더 설정
+    if is_allowed:
         response.headers["Access-Control-Allow-Origin"] = origin
-        logger.info(f"✅ eripotter.com 도메인 허용: {origin}")
     else:
         response.headers["Access-Control-Allow-Origin"] = "https://www.eripotter.com"
-        logger.info(f"⚠️ 기본 도메인으로 설정: {origin}")
+        logger.warning(f"⚠️ 허용되지 않은 도메인: {origin}")
     
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
