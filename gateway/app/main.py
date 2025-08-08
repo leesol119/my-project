@@ -48,14 +48,33 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# CORS 미들웨어 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 모든 도메인 허용
-    allow_credentials=False,  # credentials 비활성화
-    allow_methods=["*"],  # 모든 메서드 허용
-    allow_headers=["*"],  # 모든 헤더 허용
-    expose_headers=["*"],  # 모든 헤더 노출
-    max_age=86400,  # 프리플라이트 캐시 24시간
+    allow_origins=[
+        "https://eripotter.com",
+        "https://www.eripotter.com",
+        "https://*.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "*"
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+        "*"
+    ],
+    expose_headers=["*"],
+    max_age=86400,
 )
 
 # AuthMiddleware가 없는 경우를 위한 임시 처리
@@ -79,11 +98,21 @@ async def health_check():
 @app.options("/{path:path}")
 async def options_handler(path: str, request: Request):
     logger.info(f"🔄 CORS 프리플라이트 요청: {request.method} {path}")
+    logger.info(f"📊 Origin: {request.headers.get('origin', 'Unknown')}")
+    logger.info(f"📊 User-Agent: {request.headers.get('user-agent', 'Unknown')}")
+    
     from fastapi.responses import Response
-    response = Response()
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
+    response = Response(status_code=200)
+    
+    # 명시적 CORS 헤더 설정
+    origin = request.headers.get('origin', '*')
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    
+    logger.info(f"✅ CORS 응답 헤더 설정 완료")
     return response
 
 # 로그인 요청 모델
@@ -116,7 +145,17 @@ async def signup(request: SignUpRequest):
     logger.info(f"🚀 회원가입 요청 받음: {latest_signup_data}")
     logger.info(f"📊 요청 헤더: {request.headers}")
     logger.info(f"🌐 클라이언트 IP: {request.client.host if request.client else 'Unknown'}")
-    return {"result": "회원가입 성공!", "received_data": latest_signup_data}
+    
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={"result": "회원가입 성공!", "received_data": latest_signup_data})
+    
+    # CORS 헤더 추가
+    origin = request.headers.get('origin', '*')
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+    
+    return response
 
 @app.get("/login", summary="최근 로그인 데이터 확인")
 async def get_latest_login():
