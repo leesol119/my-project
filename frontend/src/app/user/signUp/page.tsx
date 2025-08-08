@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import api from '@/services/api';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -37,23 +37,19 @@ export default function SignUpPage() {
     alert(JSON.stringify(signUpData, null, 2));
 
     try {
-      console.log('회원가입 시도:', signUpData);
+      console.log('🚀 Railway Gateway로 회원가입 시도:', signUpData);
       
-      // Supabase에 회원가입 요청 (실제 Supabase URL로 변경 필요)
-      const response = await axios.post('http://localhost:8080/signup', signUpData, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      // 공용 API 서비스를 사용하여 Railway gateway로 요청
+      const response = await api.post('/signup', signUpData);
       
-      console.log('회원가입 응답:', response.data);
+      console.log('✅ Railway Gateway 회원가입 응답:', response.data);
       alert('회원가입 성공! 로그인 페이지로 이동합니다.');
       
       // 로그인 페이지로 이동
       router.push('/user/login');
       
     } catch (error: any) {
-      console.error('회원가입 오류:', error);
+      console.error('❌ Railway Gateway 회원가입 오류:', error);
       alert('회원가입 실패: ' + (error.response?.data?.detail || error.message));
     }
   };

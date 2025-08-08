@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import api from '@/services/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,21 +39,18 @@ export default function LoginPage() {
 
     //axios 코드가 들어갈 자리
     try {
-      console.log('로그인 시도:', loginData);
+      console.log('🚀 Railway Gateway로 로그인 시도:', loginData);
       
-      const response = await axios.post('http://localhost:8080/login', loginData, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      // 공용 API 서비스를 사용하여 Railway gateway로 요청
+      const response = await api.post('/login', loginData);
       
-      console.log('로그인 응답:', response.data);
+      console.log('✅ Railway Gateway 로그인 응답:', response.data);
       
       // 회사 유형 선택 페이지로 이동
       router.push('/survey');
       
     } catch (error: any) {
-      console.error('로그인 오류:', error);
+      console.error('❌ Railway Gateway 로그인 오류:', error);
       alert('로그인 실패: ' + (error.response?.data?.detail || error.message));
     }
   };
