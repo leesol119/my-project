@@ -6,13 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
 import sys
-from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 
-# 환경 변수 로드
-if os.getenv("RAILWAY_ENVIRONMENT") != "true":
-    load_dotenv()
-
+# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -37,11 +33,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://your-frontend-domain.vercel.app",  # Vercel 도메인으로 변경
-    ],
+    allow_origins=["*"],  # Railway에서는 모든 도메인 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,38 +54,44 @@ async def root():
 async def health_check():
     return {"status": "healthy", "service": "assessment"}
 
-# 라우터 등록
+# 라우터 등록 (안전하게)
 try:
     from app.router.main_router import router as main_router
     app.include_router(main_router, prefix="/api/v1")
-except ImportError:
-    logger.warning("main_router not found")
+    logger.info("✅ main_router 등록됨")
+except ImportError as e:
+    logger.warning(f"main_router not found: {e}")
 
 try:
     from app.router.auth_router import router as auth_router
     app.include_router(auth_router, prefix="/api/v1/auth")
-except ImportError:
-    logger.warning("auth_router not found")
+    logger.info("✅ auth_router 등록됨")
+except ImportError as e:
+    logger.warning(f"auth_router not found: {e}")
 
 try:
     from app.router.le_router import router as le_router
     app.include_router(le_router, prefix="/api/v1/le")
-except ImportError:
-    logger.warning("le_router not found")
+    logger.info("✅ le_router 등록됨")
+except ImportError as e:
+    logger.warning(f"le_router not found: {e}")
 
 try:
     from app.router.sme_router import router as sme_router
     app.include_router(sme_router, prefix="/api/v1/sme")
-except ImportError:
-    logger.warning("sme_router not found")
+    logger.info("✅ sme_router 등록됨")
+except ImportError as e:
+    logger.warning(f"sme_router not found: {e}")
 
 try:
     from app.router.user_router import router as user_router
     app.include_router(user_router, prefix="/api/v1/user")
-except ImportError:
-    logger.warning("user_router not found")
+    logger.info("✅ user_router 등록됨")
+except ImportError as e:
+    logger.warning(f"user_router not found: {e}")
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))
+    logger.info(f"🚀 서버 시작: 포트 {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
