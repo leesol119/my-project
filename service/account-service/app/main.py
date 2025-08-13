@@ -29,24 +29,33 @@ if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv()
 
 app = FastAPI(
-    title="Account Service API",
-    description="Account 서비스 - 로그인/회원가입 담당",
-    version="1.0.0",
+    title="Account Service",
+    description="사용자 인증 및 계정 관리 서비스",
+    version="1.0.0"
 )
 
+# CORS 설정 - 내부 통신 전제 (Gateway에서만 CORS 처리)
+# 선택지 1: CORS 완전 비활성화 (권장)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[],  # 빈 리스트로 모든 Origin 차단
+#     allow_credentials=False,
+#     allow_methods=[],
+#     allow_headers=[],
+# )
+
+# 선택지 2: 최소 CORS 설정 (Gateway와 내부 통신만 허용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://eripotter.com",      # 프로덕션 도메인
-        "https://www.eripotter.com",  # www 서브도메인
-        "http://localhost:3000",      # 개발 환경
-        "http://localhost:3001",      # 개발 환경
-        "http://192.168.0.99:3000",   # 로컬 네트워크
-        "http://192.168.0.99:3001",   # 로컬 네트워크
+        "http://gateway:8080",      # Docker 네트워크
+        "http://localhost:8080",    # 로컬 개발
+        "http://127.0.0.1:8080",    # 로컬 개발
     ],
-    allow_credentials=True,  # HttpOnly 쿠키 사용을 위해 필수
-    allow_methods=["*"],
+    allow_credentials=False,        # 내부 통신이므로 credentials 불필요
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Pydantic 모델
@@ -57,59 +66,36 @@ class LoginRequest(BaseModel):
 class SignUpRequest(BaseModel):
     user_id: str
     password: str
-    company_id: str = None
+    company_id: str | None = None
 
-# 라우터 포함 (존재하는 것만)
-# app.include_router(director_router)
-# app.include_router(executive_router)
-# app.include_router(manager_router)
-# app.include_router(supervisor_router)
-# app.include_router(worker_router)
-app.include_router(auth_router)
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(f"📥 요청: {request.method} {request.url.path} (클라이언트: {request.client.host})")
-    try:
-        response = await call_next(request)
-        logger.info(f"📤 응답: {response.status_code}")
-        return response
-    except Exception as e:
-        logger.error(f"❌ 요청 처리 중 오류: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise
-
-# 기본 엔드포인트
+# 루트 엔드포인트
 @app.get("/")
 async def root():
-    logger.info("Root endpoint accessed")
-    return {"message": "Account Service API", "version": "1.0.0", "status": "running"}
+    return {
+        "message": "Account Service",
+        "version": "1.0.0",
+        "status": "running"
+    }
 
+# 헬스체크 엔드포인트
 @app.get("/health")
-async def health_check():
-    logger.info("Health check endpoint accessed")
+async def health():
     return {"status": "ok", "service": "account"}
 
 @app.get("/healthz")
 async def healthz():
-    logger.info("Healthz endpoint accessed")
     return {"status": "ok", "service": "account"}
 
+# 핑 테스트
 @app.get("/ping")
 async def ping():
-    logger.info("Ping endpoint accessed")
-    return {"pong": "ok"}
+    return {"message": "pong", "service": "account"}
 
 # 로그인 엔드포인트
 @app.post("/login")
 async def login(request: LoginRequest, http_request: Request):
-    logger.info(f"LOGIN {request.user_id} origin={http_request.headers.get('origin')}")
-    
+    logger.info(f"🔐 LOGIN {request.user_id} origin={http_request.headers.get('origin')}")
     try:
-        # 여기에 실제 로그인 로직 구현
-        # 예시: 데이터베이스 조회, 비밀번호 검증 등
-        
-        # 임시 응답 (실제로는 데이터베이스 조회 후 결과 반환)
         if request.user_id and request.password:
             return JSONResponse(
                 status_code=200,
@@ -117,26 +103,20 @@ async def login(request: LoginRequest, http_request: Request):
                     "success": True,
                     "message": "로그인 성공",
                     "user_id": request.user_id,
-                    "token": "sample_token_12345"  # 실제로는 JWT 토큰 생성
+                    "token": "sample_token_12345"
                 }
             )
         else:
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
-            
     except Exception as e:
-        logger.error(f"로그인 처리 오류: {e}")
+        logger.error(f"❌ 로그인 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="로그인 처리 오류")
 
 # 회원가입 엔드포인트
 @app.post("/signup")
 async def signup(request_data: SignUpRequest, http_request: Request):
-    logger.info(f"SIGNUP {request_data.user_id} origin={http_request.headers.get('origin')}")
-    
+    logger.info(f"📝 SIGNUP {request_data.user_id} origin={http_request.headers.get('origin')}")
     try:
-        # 여기에 실제 회원가입 로직 구현
-        # 예시: 데이터베이스 저장, 중복 확인 등
-        
-        # 임시 응답 (실제로는 데이터베이스 저장 후 결과 반환)
         if request_data.user_id and request_data.password:
             return JSONResponse(
                 status_code=201,
@@ -149,10 +129,59 @@ async def signup(request_data: SignUpRequest, http_request: Request):
             )
         else:
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
-            
     except Exception as e:
-        logger.error(f"회원가입 처리 오류: {e}")
+        logger.error(f"❌ 회원가입 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="회원가입 처리 오류")
+
+# 사용자 프로필 엔드포인트 (인증 필요)
+@app.get("/profile")
+async def get_profile(http_request: Request):
+    auth_header = http_request.headers.get("authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    logger.info(f"👤 PROFILE 조회 origin={http_request.headers.get('origin')}")
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "user_id": "sample_user",
+            "email": "user@example.com",
+            "company_id": "sample_company"
+        }
+    )
+
+# 로그아웃 엔드포인트 (인증 필요)
+@app.post("/logout")
+async def logout(http_request: Request):
+    auth_header = http_request.headers.get("authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    logger.info(f"🚪 LOGOUT origin={http_request.headers.get('origin')}")
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "message": "로그아웃 성공"
+        }
+    )
+
+# 서비스 정보
+@app.get("/info")
+async def service_info():
+    return {
+        "service": "account",
+        "version": "1.0.0",
+        "endpoints": [
+            "/login",
+            "/signup", 
+            "/profile",
+            "/logout",
+            "/health",
+            "/ping"
+        ]
+    }
 
 # Railway 환경에서 실행
 if __name__ == "__main__":

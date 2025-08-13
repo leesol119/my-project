@@ -3,115 +3,143 @@ Gateway API 메인 파일 - 서비스 디스커버리 역할
 CORS 문제 근본 해결 버전
 """
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, Response, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from fastapi.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response as StarletteResponse
 import httpx
 import logging
 import os
-import re
-from contextlib import asynccontextmanager
+from typing import Optional
 
-# ---------------------------
 # 로깅 설정
-# ---------------------------
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("gateway_api")
-
-# ---------------------------
-# 서비스 URL 설정
-# ---------------------------
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://localhost:8003")
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8004")
-
-# Railway 환경에서는 서비스 URL을 환경변수에서 가져옴
-if os.getenv("RAILWAY_ENVIRONMENT") == "true":
-    # 실제 Account/Chatbot Service URL 환경변수로 주입되어야 함
-    ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", ACCOUNT_SERVICE_URL)
-    CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", CHATBOT_SERVICE_URL)
-    logger.info("🚀 Railway 환경 감지")
-
-# 로컬 개발 환경에서는 Docker Compose 네트워크 사용
-if os.getenv("ENVIRONMENT") == "development":
-    ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8003")
-    CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8004")
-    logger.info("🔧 개발 환경 감지")
-
-logger.info(f"📡 Account Service URL: {ACCOUNT_SERVICE_URL}")
-logger.info(f"📡 Chatbot  Service URL: {CHATBOT_SERVICE_URL}")
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("🚀 Gateway API 서비스 시작")
-    logger.info(f"📡 Account Service URL: {ACCOUNT_SERVICE_URL}")
-    logger.info(f"📡 Chatbot  Service URL: {CHATBOT_SERVICE_URL}")
-    yield
-    logger.info("🛑 Gateway API 서비스 종료")
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Gateway API",
-    description="Gateway API for EriPotter Project - Service Discovery",
-    version="0.1.0",
-    lifespan=lifespan
+    title="Service Discovery Gateway",
+    description="마이크로서비스 프록시 및 서비스 디스커버리",
+    version="1.0.0"
 )
 
-# ---------------------------
-# CORS 미들웨어 설정
-# ---------------------------
-# eripotter.com(서브도메인 포함) / localhost:3000,3001 / 192.168.*.*:3000,3001 허용
-ALLOW_ORIGIN_REGEX = r"^https:\/\/([a-z0-9-]+\.)*eripotter\.com$|^https?:\/\/localhost:(3000|3001)$|^https?:\/\/192\.168\.\d+\.\d+:(3000|3001)$"
-_allow_origin_re = re.compile(ALLOW_ORIGIN_REGEX)
+# 환경 변수
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8003")
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8004")
 
+logger.info(f"🔧 ACCOUNT_SERVICE_URL: {ACCOUNT_SERVICE_URL}")
+logger.info(f"🔧 CHATBOT_SERVICE_URL: {CHATBOT_SERVICE_URL}")
+
+# HTTP 클라이언트 설정
+http_client = httpx.AsyncClient(timeout=30.0)
+
+# CORS 설정 - 프로덕션/로컬/도커 네트워크 Origin 허용
+ALLOWED_ORIGINS = [
+    "https://www.eripotter.com",
+    "https://eripotter.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://frontend:3000",
+    "http://192.168.0.99:3000",
+    "http://192.168.1.99:3000"
+]
+
+# CORS 미들웨어 (1번째 실행 - 역순 적용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=ALLOW_ORIGIN_REGEX,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^https://([a-z0-9-]+\.)*eripotter\.com$|^https?://localhost:(3000|3001)$|^https?://192\.168\.\d+\.\d+:(3000|3001)$",
+    allow_credentials=True,  # 쿠키/JWT 사용 예정
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    allow_credentials=False,  # 쿠키/세션 필요 시 True로 변경 (이 경우 Origin 와일드카드 금지)
     max_age=86400,
 )
 
-def _origin_allowed(origin: str | None) -> bool:
-    if not origin:
-        return False
-    return bool(_allow_origin_re.match(origin))
+# 인증 미들웨어 (2번째 실행 - 역순 적용)
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> StarletteResponse:
+        # OPTIONS 요청은 무조건 통과 (preflight 처리)
+        if request.method == "OPTIONS":
+            logger.info(f"🔓 PREFLIGHT 통과: {request.url.path}")
+            return await call_next(request)
+        
+        # 인증이 필요한 엔드포인트 체크
+        auth_required_paths = ["/api/account/profile", "/api/account/logout"]
+        if any(request.url.path.startswith(path) for path in auth_required_paths):
+            auth_header = request.headers.get("authorization")
+            if not auth_header:
+                logger.warning(f"🚫 인증 필요 경로에서 Authorization 헤더 누락: {request.url.path}")
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Authorization header required"}
+                )
+        
+        logger.info(f"🔐 인증 미들웨어 통과: {request.method} {request.url.path}")
+        return await call_next(request)
 
-# ---------------------------
-# HTTP 클라이언트
-# ---------------------------
-http_client = httpx.AsyncClient(timeout=30.0)
+app.add_middleware(AuthMiddleware)
 
-# ---------------------------
+# 프리플라이트 핸들러 - 모든 경로에 대한 OPTIONS 요청 처리
+@app.options("/{path:path}")
+async def preflight_handler(path: str, request: Request):
+    origin = request.headers.get("origin")
+    request_method = request.headers.get("access-control-request-method", "*")
+    request_headers = request.headers.get("access-control-request-headers", "*")
+    
+    logger.info(f"🔄 PREFLIGHT 처리: {path} origin={origin} method={request_method} headers={request_headers}")
+    
+    # Origin 검증
+    if origin and origin not in ALLOWED_ORIGINS:
+        # 정규식으로 추가 검증
+        import re
+        if not re.match(r"^https://([a-z0-9-]+\.)*eripotter\.com$|^https?://localhost:(3000|3001)$|^https?://192\.168\.\d+\.\d+:(3000|3001)$", origin):
+            logger.warning(f"🚫 허용되지 않은 Origin: {origin}")
+            return Response(status_code=403)
+    
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": request_headers,
+            "Access-Control-Max-Age": "86400",
+            "Vary": "Origin"
+        }
+    )
+
 # 범용 프록시 함수
-# ---------------------------
 async def _proxy(request: Request, service_url: str, path: str):
     """서비스로 요청을 프록시하는 범용 함수"""
     method = request.method
     target_url = f"{service_url}/{path.lstrip('/')}"
-    origin = request.headers.get("origin")
-
-    logger.info(f"PROXY {method} {target_url} origin={origin}")
-    logger.info(f"Service URL: {service_url}")
-
+    
+    logger.info(f"🌐 PROXY {method} {target_url} origin={request.headers.get('origin')}")
+    logger.info(f"🔧 Service URL: {service_url}")
+    
     try:
-        # 요청 본문 읽기
         body = None
         if method in ["POST", "PUT", "PATCH"]:
             try:
                 body = await request.json()
-                logger.info(f"Request body: {body}")
+                logger.info(f"📦 Request body: {body}")
             except Exception as e:
-                logger.warning(f"JSON 파싱 실패, 바이너리로 처리: {e}")
+                logger.warning(f"⚠️ JSON 파싱 실패, 바이너리로 처리: {e}")
                 body = await request.body()
-
-        # 헤더 준비 (hop-by-hop 헤더 제거)
+        
+        # hop-by-hop 헤더 제거 (프록시 응답에서 제거됨)
         headers = dict(request.headers)
+        hop_by_hop_headers = [
+            "connection", "keep-alive", "proxy-authenticate", 
+            "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade"
+        ]
+        for header in hop_by_hop_headers:
+            headers.pop(header, None)
         headers.pop("host", None)
-        headers.pop("content-length", None)
-        logger.info(f"Request headers: {headers}")
-
-        # 서비스로 요청 전송
-        logger.info(f"서비스로 요청 전송 중: {target_url}")
+        
+        logger.info(f"📋 Request headers: {headers}")
+        
+        logger.info(f"🚀 서비스로 요청 전송 중: {target_url}")
         response = await http_client.request(
             method=method,
             url=target_url,
@@ -120,129 +148,52 @@ async def _proxy(request: Request, service_url: str, path: str):
             headers=headers,
             params=request.query_params
         )
-
-        logger.info(f"Service 응답: {response.status_code}")
-        logger.info(f"Response headers: {dict(response.headers)}")
-
-        # 응답 생성
-        # JSON이면 JSON으로, 아니면 텍스트로
-        content_type = response.headers.get("content-type", "")
-        content = (
-            response.json()
-            if content_type.startswith("application/json")
-            else response.text
-        )
-
-        # 다운스트림 헤더를 그대로 복사하되, hop-by-hop/민감 헤더는 제거
-        passthrough_headers = dict(response.headers)
-        for h in ["content-length", "transfer-encoding", "connection", "keep-alive", "proxy-authenticate",
-                  "proxy-authorization", "te", "trailers", "upgrade"]:
-            passthrough_headers.pop(h, None)
-
+        
+        logger.info(f"✅ Service 응답: {response.status_code}")
+        logger.info(f"📋 Response headers: {dict(response.headers)}")
+        
+        # 프록시 응답 헤더에서 hop-by-hop 헤더 제거
+        response_headers = dict(response.headers)
+        for header in hop_by_hop_headers:
+            response_headers.pop(header, None)
+        
         return JSONResponse(
             status_code=response.status_code,
-            content=content,
-            headers=passthrough_headers
+            content=response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text,
+            headers=response_headers
         )
-
+        
     except httpx.RequestError as e:
-        logger.error(f"Service 연결 오류: {e}")
-        logger.error(f"Service URL: {service_url}")
-        logger.error(f"Target URL: {target_url}")
-        logger.error(f"Error type: {type(e)}")
+        logger.error(f"❌ Service 연결 오류: {e}")
+        logger.error(f"🔧 Service URL: {service_url}")
+        logger.error(f"🎯 Target URL: {target_url}")
+        logger.error(f"🔍 Error type: {type(e)}")
         raise HTTPException(status_code=503, detail=f"Service 연결 오류: {str(e)}")
     except Exception as e:
-        logger.error(f"프록시 오류: {e}")
-        logger.error(f"Error type: {type(e)}")
-        logger.error(f"Error details: {str(e)}")
+        logger.error(f"❌ 프록시 오류: {e}")
+        logger.error(f"🔍 Error type: {type(e)}")
+        logger.error(f"📝 Error details: {str(e)}")
         raise HTTPException(status_code=500, detail="프록시 오류")
 
-# ---------------------------
-# 기본 엔드포인트
-# ---------------------------
-@app.get("/")
-async def root():
-    return {"message": "Gateway API - Service Discovery", "version": "0.1.0", "status": "running"}
-
-@app.get("/favicon.ico")
-async def favicon():
-    """favicon.ico 요청 처리 - 502 오류 방지"""
-    logger.info("FAVICON 요청")
-    return JSONResponse(status_code=204, content=None)
-
-@app.get("/healthz")
-async def healthz():
-    logger.info("HEALTHZ 요청")
-    return {"status": "ok"}
-
-@app.get("/test-account-service")
-async def test_account_service():
-    logger.info("Account Service 연결 테스트")
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
-            logger.info(f"Account Service 응답: {response.status_code}")
-            return {
-                "status": "ok",
-                "account_service_url": ACCOUNT_SERVICE_URL,
-                "account_service_status": response.status_code,
-                "account_service_response": response.json()
-            }
-    except Exception as e:
-        logger.error(f"Account Service 연결 실패: {e}")
-        return {
-            "status": "error",
-            "account_service_url": ACCOUNT_SERVICE_URL,
-            "error": str(e)
-        }
-
-# ---------------------------
-# CORS 프리플라이트 핸들러 (모든 경로)
-# ---------------------------
-@app.options("/{path:path}")
-async def preflight_handler(path: str, request: Request):
-    origin = request.headers.get("origin")
-    req_headers = request.headers.get("access-control-request-headers", "*")
-    methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-
-    logger.info(f"PREFLIGHT {path} origin={origin} req_headers={req_headers}")
-
-    # 허용되지 않은 Origin이면 403 (선택 사항: 필요 시 완화 가능)
-    if not _origin_allowed(origin):
-        logger.warning(f"❌ 비허용 Origin의 프리플라이트: {origin}")
-        return PlainTextResponse("Forbidden origin", status_code=403)
-
-    headers = {
-        "Access-Control-Allow-Origin": origin,         # echo allowed origin
-        "Access-Control-Allow-Methods": methods,
-        "Access-Control-Allow-Headers": req_headers,
-        "Access-Control-Max-Age": "86400",
-        "Vary": "Origin",  # 캐시 분리
-    }
-    return Response(status_code=200, headers=headers)
-
-# ---------------------------
-# 프록시 라우트
-# ---------------------------
 # ---- account-service 프록시 ----
-@app.api_route("/api/account", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@app.api_route("/api/account", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def account_root(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/")
 
-@app.api_route("/api/account/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def account_any(path: str, request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
 
 # ---- chatbot-service 프록시 ----
-@app.api_route("/api/chatbot", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@app.api_route("/api/chatbot", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def chatbot_root(request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, "/")
 
-@app.api_route("/api/chatbot/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@app.api_route("/api/chatbot/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
-# ---- 기존 경로 호환성 유지 (점진적 마이그레이션용) ----
+# 기존 경로 호환성 유지 (점진적 마이그레이션용)
 @app.post("/login")
 async def login_proxy(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
@@ -255,12 +206,53 @@ async def signup_proxy(request: Request):
 async def user_login_proxy(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
 
-# ---------------------------
-# 서버 실행
-# ---------------------------
-if __name__ == "__main__":
-    import uvicorn
-    # 고정 포트 사용 (Railway는 PORT 환경변수를 세팅해줄 수 있으니 필요하면 교체)
-    port = int(os.getenv("PORT", 8080))
-    logger.info(f"🚀 Gateway API 시작 - 포트: {port}")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
+# 헬스체크 엔드포인트
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "gateway"}
+
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok", "service": "gateway"}
+
+# Account Service 연결 테스트
+@app.get("/test-account-service")
+async def test_account_service():
+    try:
+        response = await http_client.get(f"{ACCOUNT_SERVICE_URL}/health")
+        logger.info(f"✅ Account Service 연결 성공: {response.status_code}")
+        return {
+            "status": "success",
+            "account_service": "connected",
+            "response": response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
+        }
+    except Exception as e:
+        logger.error(f"❌ Account Service 연결 실패: {e}")
+        return {
+            "status": "error",
+            "account_service": "disconnected",
+            "error": str(e)
+        }
+
+# favicon.ico 처리
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)
+
+# 루트 엔드포인트
+@app.get("/")
+async def root():
+    return {
+        "message": "Service Discovery Gateway",
+        "version": "1.0.0",
+        "services": {
+            "account": ACCOUNT_SERVICE_URL,
+            "chatbot": CHATBOT_SERVICE_URL
+        }
+    }
+
+# 애플리케이션 종료 시 HTTP 클라이언트 정리
+@app.on_event("shutdown")
+async def shutdown_event():
+    await http_client.aclose()
+    logger.info("🔌 HTTP 클라이언트 정리 완료")
