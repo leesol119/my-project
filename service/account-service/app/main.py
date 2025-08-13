@@ -1,32 +1,16 @@
 """
 Account 서비스 메인 애플리케이션 진입점
 """
-from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-# from app.router.director_router import director_router
-# from app.router.executive_router import executive_router
-# from app.router.manager_router import manager_router
-# from app.router.supervisor_router import supervisor_router
-# from app.router.worker_router import worker_router
-from app.router.user_router import auth_router
-import uvicorn
 import logging
-import traceback
 import os
-import sys
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("account_service")
- 
-if os.getenv("RAILWAY_ENVIRONMENT") != "true":
-    load_dotenv()
 
 app = FastAPI(
     title="Account Service",
@@ -34,23 +18,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS 설정 - 내부 통신 전제 (Gateway에서만 CORS 처리)
-# 선택지 1: CORS 완전 비활성화 (권장)
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[],  # 빈 리스트로 모든 Origin 차단
-#     allow_credentials=False,
-#     allow_methods=[],
-#     allow_headers=[],
-# )
-
-# 선택지 2: 최소 CORS 설정 (Gateway와 내부 통신만 허용)
+# CORS 설정 - Gateway와 내부 통신만 허용
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://my-project-production-0a50.up.railway.app",
-        "https://localhost:8080",    # 로컬 개발
-        "https://127.0.0.1:8080",    # 로컬 개발
+        "https://my-project-production-0a50.up.railway.app",  # Gateway URL
+        "http://localhost:8080",    # 로컬 개발
+        "http://127.0.0.1:8080",    # 로컬 개발
     ],
     allow_credentials=False,        # 내부 통신이므로 credentials 불필요
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -185,12 +159,10 @@ async def service_info():
 
 # Railway 환경에서 실행
 if __name__ == "__main__":
-    # 고정 포트 사용
     port = 8003
     logger.info(f"🚀 Account Service 시작 - 포트: {port}")
-    logger.info(f"📡 서비스 URL: http://0.0.0.0:{port}")
-    logger.info(f"🔍 헬스체크 URL: http://0.0.0.0:{port}/healthz")
     
+    import uvicorn
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

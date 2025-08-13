@@ -130,7 +130,7 @@ export default function LoginPage() {
             {/* Sign Up Button */}
             <button
               type="button"
-              onClick={() => router.push('/user/signUp')}
+              onClick={() => router.push('/signup')}
               className="w-full bg-white border-2 border-gray-300 text-gray-800 py-4 rounded-2xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium text-lg shadow-sm"
             >
               Sign Up

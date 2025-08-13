@@ -113,8 +113,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
 app.add_middleware(AuthMiddleware)
 
 # 환경 변수
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8003")
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8004")
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8006")
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8001")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 logger.info(f"🔧 ACCOUNT_SERVICE_URL: {ACCOUNT_SERVICE_URL}")
@@ -256,10 +256,6 @@ async def test_account_service():
             "error": str(e)
         }
 
-# favicon.ico 처리
-@app.get("/favicon.ico")
-async def favicon():
-    return Response(status_code=204)
 
 # 루트 엔드포인트
 @app.get("/")

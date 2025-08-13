@@ -19,6 +19,7 @@ services:
       - report-service
       - request-service
       - response-service
+      - account-service
       - redis
     dns:
       - 8.8.8.8
@@ -30,7 +31,7 @@ services:
     build: ./assesment-service
     container_name: assesment-service
     ports:
-      - "8001:8001"
+      - "8007:8007"
     volumes:
       - ./assesment-service:/app
     env_file:
@@ -47,7 +48,7 @@ services:
     build: ./chatbot-service
     container_name: chatbot-service
     ports:
-      - "8002:8002"
+      - "8001:8001"
     volumes:
       - ./chatbot-service:/app
     env_file:
@@ -64,7 +65,7 @@ services:
     build: ./monitoring-service
     container_name: monitoring-service
     ports:
-      - "8003:8003"
+      - "8002:8002"
     volumes:
       - ./monitoring-service:/app
     env_file:
@@ -81,7 +82,7 @@ services:
     build: ./report-service
     container_name: report-service
     ports:
-      - "8004:8004"
+      - "8003:8003"
     volumes:
       - ./report-service:/app
     env_file:
@@ -98,7 +99,7 @@ services:
     build: ./request-service
     container_name: request-service
     ports:
-      - "8005:8005"
+      - "8004:8004"
     volumes:
       - ./request-service:/app
     env_file:
@@ -115,11 +116,28 @@ services:
     build: ./response-service
     container_name: response-service
     ports:
-      - "8006:8006"
+      - "8005:8005"
     volumes:
       - ./response-service:/app
     env_file:
       - ./response-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  account-service:
+    build: ./account-service
+    container_name: account-service
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./account-service:/app
+    env_file:
+      - ./account-service/.env
     environment:
       - PYTHONUNBUFFERED=1
     restart: always

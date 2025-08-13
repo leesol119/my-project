@@ -45,7 +45,7 @@ export default function SignUpPage() {
       console.log('🔧 Gateway URL:', GATEWAY_URL);
       
       // 직접 axios를 사용하여 Railway gateway로 요청
-      const response = await axios.post(`${GATEWAY_URL}/user/signUp`, signUpData, {
+      const response = await axios.post(`${GATEWAY_URL}/signup`, signUpData, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -57,7 +57,7 @@ export default function SignUpPage() {
       alert('회원가입 성공! 로그인 페이지로 이동합니다.');
       
       // 로그인 페이지로 이동
-      router.push('/user/login');
+      router.push('/login');
       
     } catch (error: any) {
       console.error('❌ Railway Gateway 회원가입 오류:', error);
@@ -141,7 +141,7 @@ export default function SignUpPage() {
               <p className="text-gray-600">
                 이미 계정이 있으신가요?{' '}
                 <button
-                  onClick={() => router.push('/user/login')}
+                  onClick={() => router.push('/login')}
                   className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
                 >
                   로그인하기
