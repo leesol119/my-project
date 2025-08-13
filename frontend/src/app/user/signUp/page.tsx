@@ -39,12 +39,18 @@ export default function SignUpPage() {
     try {
       console.log('🚀 Railway Gateway로 회원가입 시도:', signUpData);
       
+      // 환경변수에서 Gateway URL 가져오기
+      const GATEWAY_URL = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL || 'https://my-project-production-0a50.up.railway.app';
+      
+      console.log('🔧 Gateway URL:', GATEWAY_URL);
+      
       // 직접 axios를 사용하여 Railway gateway로 요청
-      const response = await axios.post('https://my-project-production-0a50.up.railway.app/signup', signUpData, {
+      const response = await axios.post(`${GATEWAY_URL}/signup`, signUpData, {
         headers: {
           'Content-Type': 'application/json',
         },
         withCredentials: false,
+        timeout: 10000, // 10초 타임아웃 추가
       });
       
       console.log('✅ Railway Gateway 회원가입 응답:', response.data);
