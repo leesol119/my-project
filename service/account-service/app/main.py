@@ -176,7 +176,7 @@ async def service_info():
 
 # Railway 환경에서 실행
 if __name__ == "__main__":
-    port = 8003
+    port = int(os.getenv("PORT", "8006"))
     logger.info(f"🚀 Account Service 시작 - 포트: {port}")
     
     import uvicorn

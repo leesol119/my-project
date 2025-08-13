@@ -116,7 +116,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 app.add_middleware(AuthMiddleware)
 
 # 환경 변수
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8006")
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "https://account-service-production-af71.up.railway.app")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8001")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
@@ -233,6 +233,15 @@ async def login_proxy(request: Request):
             logger.info(f"🔄 Account Service로 로그인 요청 전달 시도: {ACCOUNT_SERVICE_URL}/login")
             response = await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
             logger.info(f"✅ Account Service 로그인 응답 성공: {response.status_code}")
+            
+            # 502 에러인 경우 fallback으로 처리
+            if response.status_code == 502:
+                logger.warning(f"⚠️ Account Service 502 에러, Gateway 직접 처리로 전환")
+                logger.info(f"🔄 Gateway 직접 로그인 처리 시작")
+                direct_response = await direct_login(request)
+                logger.info(f"✅ Gateway 직접 로그인 처리 완료: {direct_response.status_code}")
+                return direct_response
+            
             return response
             
         except Exception as proxy_error:
