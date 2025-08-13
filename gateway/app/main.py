@@ -21,8 +21,9 @@ CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8004")
 
 # Railway 환경에서는 서비스 URL을 환경변수에서 가져옴
 if os.getenv("RAILWAY_ENVIRONMENT") == "true":
-    ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "https://your-account-service-url.railway.app")
-    CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "https://your-chatbot-service-url.railway.app")
+    # 실제 Account Service URL로 변경 필요
+    ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "https://account-service-production-xxxx.up.railway.app")
+    CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "https://chatbot-service-production-xxxx.up.railway.app")
     logger.info(f"🚀 Railway 환경 감지")
 
 # 로컬 개발 환경에서는 Docker Compose 네트워크 사용
@@ -70,6 +71,7 @@ async def _proxy(request: Request, service_url: str, path: str):
     target_url = f"{service_url}/{path.lstrip('/')}"
     
     logger.info(f"PROXY {method} {target_url} origin={request.headers.get('origin')}")
+    logger.info(f"Service URL: {service_url}")
     
     try:
         # 요청 본문 읽기
@@ -77,14 +79,18 @@ async def _proxy(request: Request, service_url: str, path: str):
         if method in ["POST", "PUT", "PATCH"]:
             try:
                 body = await request.json()
-            except:
+                logger.info(f"Request body: {body}")
+            except Exception as e:
+                logger.warning(f"JSON 파싱 실패, 바이너리로 처리: {e}")
                 body = await request.body()
         
         # 헤더 준비
         headers = dict(request.headers)
         headers.pop("host", None)  # host 헤더 제거
+        logger.info(f"Request headers: {headers}")
         
         # 서비스로 요청 전송
+        logger.info(f"서비스로 요청 전송 중: {target_url}")
         response = await http_client.request(
             method=method,
             url=target_url,
@@ -95,6 +101,7 @@ async def _proxy(request: Request, service_url: str, path: str):
         )
         
         logger.info(f"Service 응답: {response.status_code}")
+        logger.info(f"Response headers: {dict(response.headers)}")
         
         # 응답 반환
         return JSONResponse(
@@ -106,15 +113,28 @@ async def _proxy(request: Request, service_url: str, path: str):
     except httpx.RequestError as e:
         logger.error(f"Service 연결 오류: {e}")
         logger.error(f"Service URL: {service_url}")
+        logger.error(f"Target URL: {target_url}")
+        logger.error(f"Error type: {type(e)}")
         raise HTTPException(status_code=503, detail=f"Service 연결 오류: {str(e)}")
     except Exception as e:
         logger.error(f"프록시 오류: {e}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error details: {str(e)}")
         raise HTTPException(status_code=500, detail="프록시 오류")
 
 # 기본 엔드포인트
 @app.get("/")
 async def root():
     return {"message": "Gateway API - Service Discovery", "version": "0.1.0", "status": "running"}
+
+@app.get("/favicon.ico")
+async def favicon():
+    """favicon.ico 요청 처리 - 502 오류 방지"""
+    logger.info("FAVICON 요청")
+    return JSONResponse(
+        status_code=204,  # No Content
+        content=None
+    )
 
 @app.get("/healthz")
 async def healthz():
