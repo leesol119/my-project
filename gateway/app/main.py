@@ -196,17 +196,6 @@ async def user_login(request: LoginRequest, http_request: Request):
 # 서버 실행
 if __name__ == "__main__":
     import uvicorn
-    # PORT 환경변수 처리 개선
-    port_str = os.getenv("PORT")
-    if port_str is None:
-        port = 8000
-        print(f"PORT environment variable not set, using default: {port}")
-    else:
-        try:
-            port = int(port_str)
-            print(f"Using PORT from environment: {port}")
-        except ValueError:
-            port = 8000
-            print(f"Invalid PORT value '{port_str}', using default: {port}")
-    
+    # 고정 포트 사용
+    port = 8000
     uvicorn.run("app.main:app", host="0.0.0.0", port=port)

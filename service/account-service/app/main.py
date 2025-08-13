@@ -158,19 +158,8 @@ async def signup(request_data: SignUpRequest, http_request: Request):
 
 # Railway 환경에서 실행
 if __name__ == "__main__":
-    # PORT 환경변수 처리 개선
-    port_str = os.getenv("PORT")
-    if port_str is None:
-        port = 8003
-        print(f"PORT environment variable not set, using default: {port}")
-    else:
-        try:
-            port = int(port_str)
-            print(f"Using PORT from environment: {port}")
-        except ValueError:
-            port = 8003
-            print(f"Invalid PORT value '{port_str}', using default: {port}")
-    
+    # 고정 포트 사용
+    port = 8003
     logger.info(f"🚀 Account Service 시작 - 포트: {port}")
     uvicorn.run(
         "app.main:app",
