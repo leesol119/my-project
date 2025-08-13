@@ -32,10 +32,10 @@ logger.info(f"🔧 CHATBOT_SERVICE_URL: {CHATBOT_SERVICE_URL}")
 # HTTP 클라이언트 설정
 http_client = httpx.AsyncClient(timeout=30.0)
 
-# CORS: 운영 도메인만 허용 (+개발용은 필요시 추가)
+# CORS: 운영 도메인 및 서브도메인 허용 (+개발용)
 WHITELIST = {
     "https://sme.eripotter.com",
-    "https://www.sme.eripotter.com",              # www 도메인도 허용
+    "https://www.sme.eripotter.com",              # www 서브도메인도 허용
     "http://localhost:3000", 
     "http://localhost:5173",                      # 로컬 개발
     "http://127.0.0.1:3000",
@@ -43,10 +43,20 @@ WHITELIST = {
     # "https://sme-eripotter-com.vercel.app",     # Vercel 프리뷰를 쓰면 주석 해제
 }
 
+# 서브도메인 허용을 위한 정규식 패턴
+ALLOWED_DOMAINS = [
+    r"^https://([a-z0-9-]+\.)*sme\.eripotter\.com$",  # sme.eripotter.com의 모든 서브도메인
+    r"^https://([a-z0-9-]+\.)*eripotter\.com$",       # eripotter.com의 모든 서브도메인
+    r"^http://localhost:\d+$",                        # localhost의 모든 포트
+    r"^http://127\.0\.0\.1:\d+$",                     # 127.0.0.1의 모든 포트
+    r"^http://192\.168\.\d+\.\d+:\d+$",               # 로컬 네트워크의 모든 IP와 포트
+]
+
 # 미들웨어(기본 방어막) - allow_origins는 넓게 두되 credentials 고려
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(WHITELIST),
+    allow_origin_regex=r"^https://([a-z0-9-]+\.)*sme\.eripotter\.com$|^https://([a-z0-9-]+\.)*eripotter\.com$|^http://localhost:\d+$|^http://127\.0\.0\.1:\d+$|^http://192\.168\.\d+\.\d+:\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,9 +65,16 @@ app.add_middleware(
 )
 
 def cors_headers_for(request: Request):
-    """요청 Origin이 화이트리스트에 있으면 해당 Origin을 그대로 반환."""
+    """요청 Origin이 허용 목록에 있으면 해당 Origin을 그대로 반환."""
+    import re
+    
     origin = request.headers.get("origin")
+    if not origin:
+        return {}
+    
+    # 1. WHITELIST에 직접 있는지 확인
     if origin in WHITELIST:
+        logger.info(f"✅ WHITELIST 매치: {origin}")
         return {
             "Access-Control-Allow-Origin": origin,
             "Vary": "Origin",  # 캐시 안정성
@@ -65,7 +82,21 @@ def cors_headers_for(request: Request):
             "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
         }
-    # 화이트리스트 밖이면 CORS 헤더 미부착(브라우저가 차단)
+    
+    # 2. 정규식 패턴으로 서브도메인 확인
+    for pattern in ALLOWED_DOMAINS:
+        if re.match(pattern, origin):
+            logger.info(f"✅ 정규식 매치: {origin} (패턴: {pattern})")
+            return {
+                "Access-Control-Allow-Origin": origin,
+                "Vary": "Origin",  # 캐시 안정성
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
+            }
+    
+    # 허용되지 않은 Origin
+    logger.warning(f"🚫 허용되지 않은 Origin: {origin}")
     return {}
 
 # 인증 미들웨어 (2번째 실행 - 역순 적용)

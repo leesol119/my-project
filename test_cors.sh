@@ -24,6 +24,29 @@ curl -i -X OPTIONS "http://localhost:8080/signup" \
 
 echo -e "\n"
 
+# 다양한 로컬 포트 테스트
+echo "🔄 다양한 로컬 포트 테스트"
+curl -i -X OPTIONS "http://localhost:8080/signup" \
+  -H "Origin: http://localhost:5173" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type, authorization"
+
+echo -e "\n"
+
+curl -i -X OPTIONS "http://localhost:8080/signup" \
+  -H "Origin: http://127.0.0.1:3000" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type, authorization"
+
+echo -e "\n"
+
+curl -i -X OPTIONS "http://localhost:8080/signup" \
+  -H "Origin: http://192.168.0.99:3000" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type, authorization"
+
+echo -e "\n"
+
 # 실제 로그인 요청 (로컬)
 echo "🔐 로그인 요청 (로컬)"
 curl -i -X POST "http://localhost:8080/login" \

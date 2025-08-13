@@ -48,6 +48,29 @@ curl -i -X OPTIONS "$GATEWAY_URL/signup" \
 
 echo -e "\n"
 
+# 다양한 서브도메인 테스트
+echo "🌐 다양한 서브도메인 테스트"
+curl -i -X OPTIONS "$GATEWAY_URL/signup" \
+  -H "Origin: https://api.sme.eripotter.com" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type, authorization"
+
+echo -e "\n"
+
+curl -i -X OPTIONS "$GATEWAY_URL/signup" \
+  -H "Origin: https://dev.sme.eripotter.com" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type, authorization"
+
+echo -e "\n"
+
+curl -i -X OPTIONS "$GATEWAY_URL/signup" \
+  -H "Origin: https://staging.sme.eripotter.com" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type, authorization"
+
+echo -e "\n"
+
 # Account Service 연결 테스트
 echo "🔗 Account Service 연결 테스트"
 curl -i "$GATEWAY_URL/test-account-service"
