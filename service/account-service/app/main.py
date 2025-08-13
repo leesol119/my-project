@@ -48,9 +48,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://gateway:8080",      # Docker 네트워크
-        "http://localhost:8080",    # 로컬 개발
-        "http://127.0.0.1:8080",    # 로컬 개발
+        "https://my-project-production-0a50.up.railway.app",
+        "https://localhost:8080",    # 로컬 개발
+        "https://127.0.0.1:8080",    # 로컬 개발
     ],
     allow_credentials=False,        # 내부 통신이므로 credentials 불필요
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
