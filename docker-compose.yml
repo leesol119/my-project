@@ -30,14 +30,42 @@ services:
       - ENVIRONMENT=development
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
+      - ACCOUNT_SERVICE_URL=http://account-service:8003
     volumes:
       - ./gateway/app:/app/app
       - ./gateway/requirements.txt:/app/requirements.txt
     networks:
       - eripotter-network
+    depends_on:
+      - account-service
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Account Service (로그인/회원가입 담당)
+  account-service:
+    build:
+      context: ./service/account-service
+      dockerfile: Dockerfile
+    container_name: account-service
+    ports:
+      - "8003:8003"
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./service/account-service/app:/app/app
+      - ./service/account-service/requirements.txt:/app/requirements.txt
+    networks:
+      - eripotter-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
