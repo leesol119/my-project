@@ -70,9 +70,34 @@ http_client = httpx.AsyncClient(timeout=30.0)
 async def root():
     return {"message": "Gateway API - Main Router", "version": "0.1.0", "status": "running"}
 
+@app.get("/health")
+async def health():
+    logger.info("🏥 헬스체크 요청 받음 - /health")
+    try:
+        # Account Service 연결 상태 확인
+        account_health = "unknown"
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
+                account_health = "healthy" if response.status_code == 200 else "unhealthy"
+        except Exception as e:
+            logger.warning(f"⚠️ Account Service 헬스체크 실패: {e}")
+            account_health = "unreachable"
+        
+        return {
+            "status": "ok",
+            "service": "gateway",
+            "timestamp": "2025-08-13",
+            "account_service": account_health,
+            "port": 8080
+        }
+    except Exception as e:
+        logger.error(f"❌ 헬스체크 오류: {e}")
+        raise HTTPException(status_code=500, detail="Health check failed")
+
 @app.get("/healthz")
 async def healthz():
-    logger.info("🏥 헬스체크 요청 받음")
+    logger.info("🏥 헬스체크 요청 받음 - /healthz")
     return {"status": "ok", "service": "gateway", "timestamp": "2025-08-13"}
 
 # CORS 프리플라이트 핸들러 - 모든 경로에 대해 OPTIONS 처리
