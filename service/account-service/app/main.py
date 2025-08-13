@@ -82,15 +82,23 @@ async def log_requests(request: Request, call_next):
 # 기본 엔드포인트
 @app.get("/")
 async def root():
+    logger.info("Root endpoint accessed")
     return {"message": "Account Service API", "version": "1.0.0", "status": "running"}
 
 @app.get("/health")
 async def health_check():
+    logger.info("Health check endpoint accessed")
     return {"status": "healthy!", "service": "account"}
 
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok"}
+    logger.info("Healthz endpoint accessed")
+    return {"status": "ok", "service": "account", "timestamp": "2025-08-13"}
+
+@app.get("/ping")
+async def ping():
+    logger.info("Ping endpoint accessed")
+    return {"pong": "ok"}
 
 # 로그인 엔드포인트
 @app.post("/login")
@@ -161,6 +169,9 @@ if __name__ == "__main__":
     # 고정 포트 사용
     port = 8003
     logger.info(f"🚀 Account Service 시작 - 포트: {port}")
+    logger.info(f"📡 서비스 URL: http://0.0.0.0:{port}")
+    logger.info(f"🔍 헬스체크 URL: http://0.0.0.0:{port}/healthz")
+    
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
