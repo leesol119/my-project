@@ -44,6 +44,14 @@ app = FastAPI(
 # CORS 미들웨어 설정 - 완전한 CORS 해결
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=[
+        "https://www.eripotter.com",
+        "https://eripotter.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://192.168.0.99:3000",
+        "http://192.168.0.99:3001",
+    ],
     allow_origin_regex=r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)",
     allow_credentials=False,  # 쿠키 사용 시 True로 변경
     allow_methods=["*"],
@@ -93,11 +101,17 @@ async def preflight_handler(request: Request, path: str):
     origin = request.headers.get('origin', '')
     logger.info(f"📡 Origin: {origin}")
     
-    # eripotter.com 도메인 또는 로컬 개발 환경 허용
-    allowed_pattern = r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)"
-    
-    if re.match(allowed_pattern, origin):
-        logger.info(f"✅ Origin 허용: {origin}")
+    # eripotter.com 도메인 우선 처리
+    if origin in ["https://www.eripotter.com", "https://eripotter.com"]:
+        logger.info(f"✅ eripotter.com Origin 허용: {origin}")
+        response = JSONResponse(
+            content={"message": "CORS preflight successful"},
+            status_code=200
+        )
+        response.headers["Access-Control-Allow-Origin"] = origin
+    # 정규식 패턴으로 다른 도메인 처리
+    elif re.match(r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)", origin):
+        logger.info(f"✅ 정규식 패턴 Origin 허용: {origin}")
         response = JSONResponse(
             content={"message": "CORS preflight successful"},
             status_code=200
@@ -116,9 +130,6 @@ async def preflight_handler(request: Request, path: str):
     response.headers["Access-Control-Allow-Headers"] = "*"
     response.headers["Access-Control-Expose-Headers"] = "*"
     response.headers["Access-Control-Max-Age"] = "86400"
-    
-    # credentials 관련 헤더 (allow_credentials=False이므로 제외)
-    # response.headers["Access-Control-Allow-Credentials"] = "false"
     
     logger.info(f"📤 CORS 헤더 설정 완료: {dict(response.headers)}")
     return response
@@ -142,14 +153,16 @@ async def login(request: LoginRequest, http_request: Request):
         logger.info(f"📤 Account Service 응답: {response.status_code}")
         
         # 응답 반환
+        origin = http_request.headers.get("origin", "https://www.eripotter.com")
         return JSONResponse(
             status_code=response.status_code,
             content=response.json(),
             headers={
-                "Access-Control-Allow-Origin": http_request.headers.get("origin", "https://www.eripotter.com"),
+                "Access-Control-Allow-Origin": origin,
                 "Access-Control-Allow-Methods": "*",
                 "Access-Control-Allow-Headers": "*",
                 "Access-Control-Expose-Headers": "*",
+                "Access-Control-Max-Age": "86400",
             }
         )
         
@@ -179,14 +192,16 @@ async def signup(request_data: SignUpRequest, http_request: Request):
         logger.info(f"📤 Account Service 응답: {response.status_code}")
         
         # 응답 반환
+        origin = http_request.headers.get("origin", "https://www.eripotter.com")
         return JSONResponse(
             status_code=response.status_code,
             content=response.json(),
             headers={
-                "Access-Control-Allow-Origin": http_request.headers.get("origin", "https://www.eripotter.com"),
+                "Access-Control-Allow-Origin": origin,
                 "Access-Control-Allow-Methods": "*",
                 "Access-Control-Allow-Headers": "*",
                 "Access-Control-Expose-Headers": "*",
+                "Access-Control-Max-Age": "86400",
             }
         )
         

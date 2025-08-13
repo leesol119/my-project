@@ -88,12 +88,12 @@ async def root():
 @app.get("/health")
 async def health_check():
     logger.info("Health check endpoint accessed")
-    return {"status": "healthy!", "service": "account"}
+    return {"status": "ok", "service": "account"}
 
 @app.get("/healthz")
 async def healthz():
     logger.info("Healthz endpoint accessed")
-    return {"status": "ok", "service": "account", "timestamp": "2025-08-13"}
+    return {"status": "ok", "service": "account"}
 
 @app.get("/ping")
 async def ping():
