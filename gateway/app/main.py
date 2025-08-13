@@ -197,5 +197,5 @@ async def user_login(request: LoginRequest, http_request: Request):
 if __name__ == "__main__":
     import uvicorn
     # 고정 포트 사용
-    port = 8000
+    port = 8080
     uvicorn.run("app.main:app", host="0.0.0.0", port=port)
