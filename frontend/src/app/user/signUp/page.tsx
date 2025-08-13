@@ -45,7 +45,7 @@ export default function SignUpPage() {
       console.log('🔧 Gateway URL:', GATEWAY_URL);
       
       // 직접 axios를 사용하여 Railway gateway로 요청
-      const response = await axios.post(`${GATEWAY_URL}/signup`, signUpData, {
+      const response = await axios.post(`${GATEWAY_URL}/user/signUp`, signUpData, {
         headers: {
           'Content-Type': 'application/json',
         },
