@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/services/api';
+import axios from 'axios';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -39,8 +39,13 @@ export default function SignUpPage() {
     try {
       console.log('🚀 Railway Gateway로 회원가입 시도:', signUpData);
       
-      // 공용 API 서비스를 사용하여 Railway gateway로 요청
-      const response = await api.post('/signup', signUpData);
+      // 직접 axios를 사용하여 Railway gateway로 요청
+      const response = await axios.post('https://my-project-production-0a50.up.railway.app/signup', signUpData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: false,
+      });
       
       console.log('✅ Railway Gateway 회원가입 응답:', response.data);
       alert('회원가입 성공! 로그인 페이지로 이동합니다.');
