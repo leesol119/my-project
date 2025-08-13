@@ -158,7 +158,14 @@ async def signup(request_data: SignUpRequest, http_request: Request):
 
 # Railway 환경에서 실행
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8003))
+    # PORT 환경변수 처리 개선
+    port_str = os.getenv("PORT", "8003")
+    try:
+        port = int(port_str)
+    except ValueError:
+        print(f"Warning: Invalid PORT value '{port_str}', using default 8003")
+        port = 8003
+    
     logger.info(f"🚀 Account Service 시작 - 포트: {port}")
     uvicorn.run(
         "app.main:app",

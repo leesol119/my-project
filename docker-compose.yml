@@ -100,7 +100,7 @@ services:
     image: nginx:alpine
     container_name: order-service
     ports:
-      - "8003:80"
+      - "8004:80"
     volumes:
       - ./gateway/sample-services/order-service:/usr/share/nginx/html
     networks:

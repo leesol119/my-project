@@ -195,6 +195,12 @@ async def user_login(request: LoginRequest, http_request: Request):
 
 # 서버 실행
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
+    # PORT 환경변수 처리 개선
+    port_str = os.getenv("PORT", "8000")
+    try:
+        port = int(port_str)
+    except ValueError:
+        print(f"Warning: Invalid PORT value '{port_str}', using default 8000")
+        port = 8000
+    
     uvicorn.run("app.main:app", host="0.0.0.0", port=port)
