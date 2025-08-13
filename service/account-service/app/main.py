@@ -117,39 +117,23 @@ async def login(request: LoginRequest, http_request: Request):
 # 회원가입 엔드포인트
 @app.post("/signup")
 async def signup(request_data: SignUpRequest, http_request: Request):
-    """MVC 구조: Account Service에서 회원가입 처리"""
-    logger.info(f"📝 Account Service 회원가입 요청 수신: user_id={request_data.user_id}, origin={http_request.headers.get('origin')}")
-    
+    logger.info(f"📝 SIGNUP {request_data.user_id} origin={http_request.headers.get('origin')}")
     try:
-        # 1. 입력값 검증
         password = request_data.get_password()
-        logger.info(f"📋 회원가입 입력값 검증: user_id={request_data.user_id}, password_length={len(password) if password else 0}")
-        
-        if not request_data.user_id or not password:
-            logger.warning(f"❌ 회원가입 실패: 필수 입력값 누락 - user_id={request_data.user_id}, password_provided={bool(password)}")
+        if request_data.user_id and password:
+            return JSONResponse(
+                status_code=201,
+                content={
+                    "success": True,
+                    "message": "회원가입 성공",
+                    "user_id": request_data.user_id,
+                    "company_id": request_data.company_id
+                }
+            )
+        else:
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
-        
-        # 2. 회원가입 처리 (실제로는 데이터베이스 저장)
-        logger.info(f"🔍 사용자 등록 처리: {request_data.user_id}")
-        
-        # 3. 성공 응답
-        logger.info(f"✅ 회원가입 성공: {request_data.user_id}")
-        return JSONResponse(
-            status_code=201,
-            content={
-                "success": True,
-                "message": "회원가입 성공 (Account Service)",
-                "user_id": request_data.user_id,
-                "company_id": request_data.company_id,
-                "service": "account-service"
-            }
-        )
-        
-    except HTTPException:
-        # HTTPException은 그대로 재발생
-        raise
     except Exception as e:
-        logger.error(f"❌ Account Service 회원가입 처리 오류: {e}")
+        logger.error(f"❌ 회원가입 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="회원가입 처리 오류")
 
 # 사용자 프로필 엔드포인트 (인증 필요)

@@ -333,100 +333,22 @@ async def signup_proxy(request: Request):
         body = await request.body()
         logger.info(f"📝 Gateway 회원가입 요청 수신: {body.decode()}")
         
-        # 2. Account Service로 프록시 요청 시도
-        try:
-            logger.info(f"🔄 Account Service로 회원가입 요청 전달 시도: {ACCOUNT_SERVICE_URL}/signup")
-            response = await _proxy(request, ACCOUNT_SERVICE_URL, "/signup")
-            logger.info(f"✅ Account Service 회원가입 응답 성공: {response.status_code}")
-            
-            # 502 에러인 경우 fallback으로 처리
-            if response.status_code == 502:
-                logger.warning(f"⚠️ Account Service 502 에러, Gateway 직접 처리로 전환")
-                logger.info(f"🔄 Gateway 직접 회원가입 처리 시작")
-                direct_response = await direct_signup(request)
-                logger.info(f"✅ Gateway 직접 회원가입 처리 완료: {direct_response.status_code}")
-                return direct_response
-            
-            return response
-            
-        except Exception as proxy_error:
-            logger.warning(f"⚠️ Account Service 연결 실패, Gateway 직접 처리로 전환: {proxy_error}")
-            logger.info(f"🔄 Gateway 직접 회원가입 처리 시작")
-            direct_response = await direct_signup(request)
-            logger.info(f"✅ Gateway 직접 회원가입 처리 완료: {direct_response.status_code}")
-            return direct_response
+        # 2. Account Service로 프록시 요청
+        logger.info(f"🔄 Account Service로 회원가입 요청 전달: {ACCOUNT_SERVICE_URL}/signup")
+        response = await _proxy(request, ACCOUNT_SERVICE_URL, "/signup")
+        
+        # 3. 응답 로그
+        logger.info(f"✅ Account Service 회원가입 응답: {response.status_code}")
+        return response
         
     except Exception as e:
-        logger.error(f"❌ Gateway 회원가입 처리 중 예상치 못한 오류: {e}")
+        logger.error(f"❌ Gateway 회원가입 처리 오류: {e}")
         return JSONResponse(
             status_code=500,
             content={
                 "success": False,
                 "message": "회원가입 처리 중 오류가 발생했습니다",
                 "error": str(e)
-            },
-            headers=cors_headers_for(request)
-        )
-
-async def direct_signup(request: Request):
-    """Account Service가 없을 때 Gateway에서 직접 회원가입 처리"""
-    try:
-        logger.info(f"📝 Gateway 직접 회원가입 처리 시작")
-        
-        # 요청 본문을 다시 읽기 (이미 읽었을 수 있으므로)
-        body = await request.body()
-        logger.info(f"📋 요청 본문 읽기 완료: {body.decode()}")
-        
-        # JSON 파싱
-        import json
-        body_data = json.loads(body.decode())
-        user_id = body_data.get("user_id")
-        password = body_data.get("user_pw") or body_data.get("password")  # frontend에서 user_pw로 보내고 있음
-        company_id = body_data.get("company_id")
-        
-        logger.info(f"🔍 파싱된 데이터: user_id={user_id}, password_provided={bool(password)}, company_id={company_id}")
-        
-        # 간단한 검증 (실제로는 데이터베이스 저장 필요)
-        if user_id and password:
-            logger.info(f"✅ Gateway 직접 회원가입 성공: {user_id}")
-            return JSONResponse(
-                status_code=201,
-                content={
-                    "success": True,
-                    "message": "회원가입 성공 (Gateway 직접 처리)",
-                    "user_id": user_id,
-                    "company_id": company_id,
-                    "service": "gateway"
-                },
-                headers=cors_headers_for(request)
-            )
-        else:
-            logger.warning(f"❌ Gateway 직접 회원가입 실패: 필수 입력값 누락 - user_id={user_id}, password_provided={bool(password)}")
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "사용자 ID와 비밀번호가 필요합니다"
-                },
-                headers=cors_headers_for(request)
-            )
-    except json.JSONDecodeError as e:
-        logger.error(f"❌ Gateway 직접 회원가입 JSON 파싱 오류: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={
-                "success": False,
-                "message": "잘못된 JSON 형식입니다"
-            },
-            headers=cors_headers_for(request)
-        )
-    except Exception as e:
-        logger.error(f"❌ Gateway 직접 회원가입 처리 오류: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "message": "회원가입 처리 오류"
             },
             headers=cors_headers_for(request)
         )
