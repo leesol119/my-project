@@ -1,10 +1,10 @@
 """
 Gateway API 메인 파일 - 메인 라우터 역할
-CORS 문제 완전 해결 버전
+CORS 문제 근본 해결 버전
 """
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 import httpx
 import logging
@@ -41,23 +41,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 미들웨어 설정 - 완전한 CORS 해결
+# CORS 미들웨어 설정 - 근본적 해결
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.eripotter.com",
-        "https://eripotter.com",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://192.168.0.99:3000",
-        "http://192.168.0.99:3001",
-    ],
-    allow_origin_regex=r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)",
-    allow_credentials=False,  # 쿠키 사용 시 True로 변경
+    allow_origin_regex=r"^https:\/\/([a-z0-9-]+\.)*eripotter\.com$|^https?:\/\/localhost:(3000|3001)$|^https?:\/\/192\.168\.\d+\.\d+:(3000|3001)$",
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    max_age=86400,  # 24시간 캐시
+    allow_credentials=False,  # 쿠키/세션 필요 시 True로 변경 (와일드카드 Origin 금지)
+    max_age=86400,
 )
 
 # 요청 모델
@@ -90,54 +82,19 @@ async def health():
 
 @app.get("/healthz")
 async def healthz():
-    logger.info("🏥 헬스체크 요청 받음 - /healthz")
-    return {"status": "ok", "service": "gateway", "timestamp": "2025-08-13"}
+    logger.info("HEALTHZ 요청")
+    return {"status": "ok"}
 
 # CORS 프리플라이트 핸들러 - 모든 경로에 대해 OPTIONS 처리
 @app.options("/{path:path}")
-async def preflight_handler(request: Request, path: str):
-    logger.info(f"🔄 CORS 프리플라이트 요청: {request.method} /{path}")
-    
-    origin = request.headers.get('origin', '')
-    logger.info(f"📡 Origin: {origin}")
-    
-    # eripotter.com 도메인 우선 처리
-    if origin in ["https://www.eripotter.com", "https://eripotter.com"]:
-        logger.info(f"✅ eripotter.com Origin 허용: {origin}")
-        response = JSONResponse(
-            content={"message": "CORS preflight successful"},
-            status_code=200
-        )
-        response.headers["Access-Control-Allow-Origin"] = origin
-    # 정규식 패턴으로 다른 도메인 처리
-    elif re.match(r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)", origin):
-        logger.info(f"✅ 정규식 패턴 Origin 허용: {origin}")
-        response = JSONResponse(
-            content={"message": "CORS preflight successful"},
-            status_code=200
-        )
-        response.headers["Access-Control-Allow-Origin"] = origin
-    else:
-        logger.warning(f"⚠️ 허용되지 않은 Origin: {origin}")
-        response = JSONResponse(
-            content={"message": "CORS preflight failed"},
-            status_code=200
-        )
-        response.headers["Access-Control-Allow-Origin"] = "https://www.eripotter.com"
-    
-    # CORS 헤더 설정
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Expose-Headers"] = "*"
-    response.headers["Access-Control-Max-Age"] = "86400"
-    
-    logger.info(f"📤 CORS 헤더 설정 완료: {dict(response.headers)}")
-    return response
+async def preflight_handler(path: str, request: Request):
+    logger.info(f"PRELIGHT {path} origin={request.headers.get('origin')}")
+    return PlainTextResponse("", status_code=200)
 
 # 로그인 엔드포인트 - Account Service로 프록시
 @app.post("/login")
 async def login(request: LoginRequest, http_request: Request):
-    logger.info(f"🔐 로그인 요청 받음: {request.user_id}")
+    logger.info(f"LOGIN {request.user_id} origin={http_request.headers.get('origin')}")
     
     try:
         # Account Service로 요청 전달
@@ -150,33 +107,25 @@ async def login(request: LoginRequest, http_request: Request):
             }
         )
         
-        logger.info(f"📤 Account Service 응답: {response.status_code}")
+        logger.info(f"Account Service 응답: {response.status_code}")
         
-        # 응답 반환
-        origin = http_request.headers.get("origin", "https://www.eripotter.com")
+        # 응답 반환 (CORS 헤더는 미들웨어가 처리)
         return JSONResponse(
             status_code=response.status_code,
-            content=response.json(),
-            headers={
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Expose-Headers": "*",
-                "Access-Control-Max-Age": "86400",
-            }
+            content=response.json()
         )
         
     except httpx.RequestError as e:
-        logger.error(f"❌ Account Service 연결 오류: {e}")
+        logger.error(f"Account Service 연결 오류: {e}")
         raise HTTPException(status_code=503, detail="Account Service 연결 오류")
     except Exception as e:
-        logger.error(f"❌ 로그인 처리 오류: {e}")
+        logger.error(f"로그인 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="로그인 처리 오류")
 
 # 회원가입 엔드포인트 - Account Service로 프록시
 @app.post("/signup")
 async def signup(request_data: SignUpRequest, http_request: Request):
-    logger.info(f"🚀 회원가입 요청 받음: {request_data.user_id}")
+    logger.info(f"SIGNUP {request_data.user_id} origin={http_request.headers.get('origin')}")
     
     try:
         # Account Service로 요청 전달
@@ -189,27 +138,19 @@ async def signup(request_data: SignUpRequest, http_request: Request):
             }
         )
         
-        logger.info(f"📤 Account Service 응답: {response.status_code}")
+        logger.info(f"Account Service 응답: {response.status_code}")
         
-        # 응답 반환
-        origin = http_request.headers.get("origin", "https://www.eripotter.com")
+        # 응답 반환 (CORS 헤더는 미들웨어가 처리)
         return JSONResponse(
             status_code=response.status_code,
-            content=response.json(),
-            headers={
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Expose-Headers": "*",
-                "Access-Control-Max-Age": "86400",
-            }
+            content=response.json()
         )
         
     except httpx.RequestError as e:
-        logger.error(f"❌ Account Service 연결 오류: {e}")
+        logger.error(f"Account Service 연결 오류: {e}")
         raise HTTPException(status_code=503, detail="Account Service 연결 오류")
     except Exception as e:
-        logger.error(f"❌ 회원가입 처리 오류: {e}")
+        logger.error(f"회원가입 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="회원가입 처리 오류")
 
 # 기타 엔드포인트들 - Account Service로 프록시
