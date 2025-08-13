@@ -103,7 +103,7 @@ async def ping():
 # 로그인 엔드포인트
 @app.post("/login")
 async def login(request: LoginRequest, http_request: Request):
-    logger.info(f"🔐 로그인 요청 받음: {request.user_id}")
+    logger.info(f"LOGIN {request.user_id} origin={http_request.headers.get('origin')}")
     
     try:
         # 여기에 실제 로그인 로직 구현
@@ -118,24 +118,19 @@ async def login(request: LoginRequest, http_request: Request):
                     "message": "로그인 성공",
                     "user_id": request.user_id,
                     "token": "sample_token_12345"  # 실제로는 JWT 토큰 생성
-                },
-                headers={
-                    "Access-Control-Allow-Origin": http_request.headers.get("origin", "https://www.eripotter.com"),
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
-                    "Access-Control-Allow-Headers": "*",
                 }
             )
         else:
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
             
     except Exception as e:
-        logger.error(f"❌ 로그인 처리 오류: {e}")
+        logger.error(f"로그인 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="로그인 처리 오류")
 
 # 회원가입 엔드포인트
 @app.post("/signup")
 async def signup(request_data: SignUpRequest, http_request: Request):
-    logger.info(f"🚀 회원가입 요청 받음: {request_data.user_id}")
+    logger.info(f"SIGNUP {request_data.user_id} origin={http_request.headers.get('origin')}")
     
     try:
         # 여기에 실제 회원가입 로직 구현
@@ -150,18 +145,13 @@ async def signup(request_data: SignUpRequest, http_request: Request):
                     "message": "회원가입 성공",
                     "user_id": request_data.user_id,
                     "company_id": request_data.company_id
-                },
-                headers={
-                    "Access-Control-Allow-Origin": http_request.headers.get("origin", "https://www.eripotter.com"),
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
-                    "Access-Control-Allow-Headers": "*",
                 }
             )
         else:
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
             
     except Exception as e:
-        logger.error(f"❌ 회원가입 처리 오류: {e}")
+        logger.error(f"회원가입 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="회원가입 처리 오류")
 
 # Railway 환경에서 실행
