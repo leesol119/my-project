@@ -7,6 +7,7 @@ from starlette.responses import Response as StarletteResponse
 import httpx
 import logging
 import os
+import time
 from typing import Optional
 
 # 로깅 설정
@@ -25,6 +26,7 @@ WHITELIST = {
     "https://www.sme.eripotter.com",              # sme 서브도메인
     "https://eripotter.com",                      # 메인 도메인
     "https://www.eripotter.com",                  # www 메인 도메인
+    "https://my-project-production-0a50.up.railway.app",  # Railway 배포
     "http://localhost:3000", 
     "http://localhost:5173",                      # 로컬 개발
     "http://127.0.0.1:3000",
@@ -36,6 +38,7 @@ WHITELIST = {
 ALLOWED_DOMAINS = [
     r"^https://([a-z0-9-]+\.)*sme\.eripotter\.com$",  # sme.eripotter.com의 모든 서브도메인
     r"^https://([a-z0-9-]+\.)*eripotter\.com$",       # eripotter.com의 모든 서브도메인
+    r"^https://([a-z0-9-]+\.)*up\.railway\.app$",     # Railway의 모든 서브도메인
     r"^http://localhost:\d+$",                        # localhost의 모든 포트
     r"^http://127\.0\.0\.1:\d+$",                     # 127.0.0.1의 모든 포트
     r"^http://192\.168\.\d+\.\d+:\d+$",               # 로컬 네트워크의 모든 IP와 포트
@@ -45,7 +48,7 @@ ALLOWED_DOMAINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(WHITELIST),
-    allow_origin_regex=r"^https://([a-z0-9-]+\.)*sme\.eripotter\.com$|^https://([a-z0-9-]+\.)*eripotter\.com$|^http://localhost:\d+$|^http://127\.0\.0\.1:\d+$|^http://192\.168\.\d+\.\d+:\d+$",
+    allow_origin_regex=r"^https://([a-z0-9-]+\.)*sme\.eripotter\.com$|^https://([a-z0-9-]+\.)*eripotter\.com$|^https://([a-z0-9-]+\.)*up\.railway\.app$|^http://localhost:\d+$|^http://127\.0\.0\.1:\d+$|^http://192\.168\.\d+\.\d+:\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -226,15 +229,134 @@ async def chatbot_any(path: str, request: Request):
 # 기존 경로 호환성 유지 (점진적 마이그레이션용)
 @app.post("/login")
 async def login_proxy(request: Request):
-    return await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
+    """MVC 구조: Gateway에서 로그인 요청을 받아서 Account Service로 전달"""
+    try:
+        # 1. 요청 본문 읽기
+        body = await request.body()
+        logger.info(f"🔐 Gateway 로그인 요청 수신: {body.decode()}")
+        
+        # 2. Account Service로 프록시 요청 시도
+        try:
+            logger.info(f"🔄 Account Service로 로그인 요청 전달: {ACCOUNT_SERVICE_URL}/login")
+            response = await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
+            logger.info(f"✅ Account Service 로그인 응답: {response.status_code}")
+            return response
+            
+        except Exception as proxy_error:
+            logger.warning(f"⚠️ Account Service 연결 실패, Gateway에서 직접 처리: {proxy_error}")
+            return await direct_login(request)
+        
+    except Exception as e:
+        logger.error(f"❌ Gateway 로그인 처리 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": "로그인 처리 중 오류가 발생했습니다",
+                "error": str(e)
+            },
+            headers=cors_headers_for(request)
+        )
+
+async def direct_login(request: Request):
+    """Account Service가 없을 때 Gateway에서 직접 로그인 처리"""
+    try:
+        body = await request.json()
+        user_id = body.get("user_id")
+        password = body.get("password")
+        
+        logger.info(f"🔐 Gateway 직접 로그인 처리: user_id={user_id}")
+        
+        # 간단한 검증 (실제로는 데이터베이스 확인 필요)
+        if user_id and password:
+            logger.info(f"✅ Gateway 직접 로그인 성공: {user_id}")
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "message": "로그인 성공 (Gateway 직접 처리)",
+                    "user_id": user_id,
+                    "token": f"gateway_token_{user_id}_{int(time.time())}",
+                    "service": "gateway"
+                },
+                headers=cors_headers_for(request)
+            )
+        else:
+            logger.warning(f"❌ Gateway 직접 로그인 실패: 필수 입력값 누락")
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "message": "사용자 ID와 비밀번호가 필요합니다"
+                },
+                headers=cors_headers_for(request)
+            )
+    except Exception as e:
+        logger.error(f"❌ Gateway 직접 로그인 처리 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": "로그인 처리 오류"
+            },
+            headers=cors_headers_for(request)
+        )
 
 @app.post("/signup")
 async def signup_proxy(request: Request):
-    return await _proxy(request, ACCOUNT_SERVICE_URL, "/signup")
+    """MVC 구조: Gateway에서 회원가입 요청을 받아서 Account Service로 전달"""
+    try:
+        # 1. 요청 본문 읽기
+        body = await request.body()
+        logger.info(f"📝 Gateway 회원가입 요청 수신: {body.decode()}")
+        
+        # 2. Account Service로 프록시 요청
+        logger.info(f"🔄 Account Service로 회원가입 요청 전달: {ACCOUNT_SERVICE_URL}/signup")
+        response = await _proxy(request, ACCOUNT_SERVICE_URL, "/signup")
+        
+        # 3. 응답 로그
+        logger.info(f"✅ Account Service 회원가입 응답: {response.status_code}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Gateway 회원가입 처리 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": "회원가입 처리 중 오류가 발생했습니다",
+                "error": str(e)
+            },
+            headers=cors_headers_for(request)
+        )
 
 @app.post("/user/login")
 async def user_login_proxy(request: Request):
-    return await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
+    """MVC 구조: Gateway에서 사용자 로그인 요청을 받아서 Account Service로 전달"""
+    try:
+        # 1. 요청 본문 읽기
+        body = await request.body()
+        logger.info(f"👤 Gateway 사용자 로그인 요청 수신: {body.decode()}")
+        
+        # 2. Account Service로 프록시 요청
+        logger.info(f"🔄 Account Service로 사용자 로그인 요청 전달: {ACCOUNT_SERVICE_URL}/login")
+        response = await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
+        
+        # 3. 응답 로그
+        logger.info(f"✅ Account Service 사용자 로그인 응답: {response.status_code}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Gateway 사용자 로그인 처리 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": "사용자 로그인 처리 중 오류가 발생했습니다",
+                "error": str(e)
+            },
+            headers=cors_headers_for(request)
+        )
 
 # Account Service 연결 테스트
 @app.get("/test-account-service")

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import logging
 import os
+import time
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -68,22 +69,38 @@ async def ping():
 # 로그인 엔드포인트
 @app.post("/login")
 async def login(request: LoginRequest, http_request: Request):
-    logger.info(f"🔐 LOGIN {request.user_id} origin={http_request.headers.get('origin')}")
+    """MVC 구조: Account Service에서 로그인 처리"""
+    logger.info(f"🔐 Account Service 로그인 요청 수신: user_id={request.user_id}, origin={http_request.headers.get('origin')}")
+    
     try:
-        if request.user_id and request.password:
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "success": True,
-                    "message": "로그인 성공",
-                    "user_id": request.user_id,
-                    "token": "sample_token_12345"
-                }
-            )
-        else:
+        # 1. 입력값 검증
+        logger.info(f"📋 로그인 입력값 검증: user_id={request.user_id}, password_length={len(request.password) if request.password else 0}")
+        
+        if not request.user_id or not request.password:
+            logger.warning(f"❌ 로그인 실패: 필수 입력값 누락 - user_id={request.user_id}, password_provided={bool(request.password)}")
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
+        
+        # 2. 로그인 처리 (실제로는 데이터베이스 확인)
+        logger.info(f"🔍 사용자 인증 처리: {request.user_id}")
+        
+        # 3. 성공 응답
+        logger.info(f"✅ 로그인 성공: {request.user_id}")
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "로그인 성공 (Account Service)",
+                "user_id": request.user_id,
+                "token": f"account_token_{request.user_id}_{int(time.time())}",
+                "service": "account-service"
+            }
+        )
+        
+    except HTTPException:
+        # HTTPException은 그대로 재발생
+        raise
     except Exception as e:
-        logger.error(f"❌ 로그인 처리 오류: {e}")
+        logger.error(f"❌ Account Service 로그인 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="로그인 처리 오류")
 
 # 회원가입 엔드포인트
