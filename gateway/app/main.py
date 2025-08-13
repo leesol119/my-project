@@ -177,19 +177,12 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
             logger.info(f"✅ 프록시 응답: {upstream.status_code} {url}")
     except httpx.HTTPError as e:
         logger.error(f"❌ 프록시 HTTP 오류: {e} {url}")
-        # 예외가 나도 CORS 헤더는 항상 달아준다
-        return JSONResponse(
-            status_code=502,
-            content={"error": "Bad Gateway", "detail": str(e)},
-            headers=cors_headers_for(request),
-        )
+        # 예외를 다시 발생시켜서 fallback 로직이 실행되도록 함
+        raise e
     except Exception as e:
         logger.error(f"❌ 프록시 일반 오류: {e} {url}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Gateway Error", "detail": str(e)},
-            headers=cors_headers_for(request),
-        )
+        # 예외를 다시 발생시켜서 fallback 로직이 실행되도록 함
+        raise e
 
     # 업스트림 응답 전달
     passthrough = {}
@@ -237,17 +230,20 @@ async def login_proxy(request: Request):
         
         # 2. Account Service로 프록시 요청 시도
         try:
-            logger.info(f"🔄 Account Service로 로그인 요청 전달: {ACCOUNT_SERVICE_URL}/login")
+            logger.info(f"🔄 Account Service로 로그인 요청 전달 시도: {ACCOUNT_SERVICE_URL}/login")
             response = await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
-            logger.info(f"✅ Account Service 로그인 응답: {response.status_code}")
+            logger.info(f"✅ Account Service 로그인 응답 성공: {response.status_code}")
             return response
             
         except Exception as proxy_error:
-            logger.warning(f"⚠️ Account Service 연결 실패, Gateway에서 직접 처리: {proxy_error}")
-            return await direct_login(request)
+            logger.warning(f"⚠️ Account Service 연결 실패, Gateway 직접 처리로 전환: {proxy_error}")
+            logger.info(f"🔄 Gateway 직접 로그인 처리 시작")
+            direct_response = await direct_login(request)
+            logger.info(f"✅ Gateway 직접 로그인 처리 완료: {direct_response.status_code}")
+            return direct_response
         
     except Exception as e:
-        logger.error(f"❌ Gateway 로그인 처리 오류: {e}")
+        logger.error(f"❌ Gateway 로그인 처리 중 예상치 못한 오류: {e}")
         return JSONResponse(
             status_code=500,
             content={
@@ -261,11 +257,19 @@ async def login_proxy(request: Request):
 async def direct_login(request: Request):
     """Account Service가 없을 때 Gateway에서 직접 로그인 처리"""
     try:
-        body = await request.json()
-        user_id = body.get("user_id")
-        password = body.get("password")
+        logger.info(f"🔐 Gateway 직접 로그인 처리 시작")
         
-        logger.info(f"🔐 Gateway 직접 로그인 처리: user_id={user_id}")
+        # 요청 본문을 다시 읽기 (이미 읽었을 수 있으므로)
+        body = await request.body()
+        logger.info(f"📋 요청 본문 읽기 완료: {body.decode()}")
+        
+        # JSON 파싱
+        import json
+        body_data = json.loads(body.decode())
+        user_id = body_data.get("user_id")
+        password = body_data.get("user_pw")  # frontend에서 user_pw로 보내고 있음
+        
+        logger.info(f"🔍 파싱된 데이터: user_id={user_id}, password_provided={bool(password)}")
         
         # 간단한 검증 (실제로는 데이터베이스 확인 필요)
         if user_id and password:
@@ -282,7 +286,7 @@ async def direct_login(request: Request):
                 headers=cors_headers_for(request)
             )
         else:
-            logger.warning(f"❌ Gateway 직접 로그인 실패: 필수 입력값 누락")
+            logger.warning(f"❌ Gateway 직접 로그인 실패: 필수 입력값 누락 - user_id={user_id}, password_provided={bool(password)}")
             return JSONResponse(
                 status_code=400,
                 content={
@@ -291,6 +295,16 @@ async def direct_login(request: Request):
                 },
                 headers=cors_headers_for(request)
             )
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Gateway 직접 로그인 JSON 파싱 오류: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "message": "잘못된 JSON 형식입니다"
+            },
+            headers=cors_headers_for(request)
+        )
     except Exception as e:
         logger.error(f"❌ Gateway 직접 로그인 처리 오류: {e}")
         return JSONResponse(
