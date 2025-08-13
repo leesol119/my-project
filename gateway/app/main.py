@@ -1,5 +1,6 @@
 """
 Gateway API 메인 파일 - 메인 라우터 역할
+CORS 문제 완전 해결 버전
 """
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,7 @@ from pydantic import BaseModel
 import httpx
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 # 로깅 설정
@@ -39,20 +41,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 미들웨어 설정
+# CORS 미들웨어 설정 - 완전한 CORS 해결
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.eripotter.com",
-        "https://eripotter.com",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://192.168.0.99:3000",
-        "http://192.168.0.99:3001",
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allow_origin_regex=r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)",
+    allow_credentials=False,  # 쿠키 사용 시 True로 변경
+    allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=86400,  # 24시간 캐시
 )
 
 # 요청 모델
@@ -73,46 +70,47 @@ http_client = httpx.AsyncClient(timeout=30.0)
 async def root():
     return {"message": "Gateway API - Main Router", "version": "0.1.0", "status": "running"}
 
-@app.get("/health")
-async def health_check():
-    logger.info("🏥 헬스체크 요청 받음")
-    return {"status": "healthy!", "service": "gateway"}
-
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok"}
+    logger.info("🏥 헬스체크 요청 받음")
+    return {"status": "ok", "service": "gateway", "timestamp": "2025-08-13"}
 
-@app.get("/health/minimal")
-async def minimal_health_check():
-    return {"status": "ok"}
-
-# CORS 프리플라이트 처리
+# CORS 프리플라이트 핸들러 - 모든 경로에 대해 OPTIONS 처리
 @app.options("/{path:path}")
-async def options_handler(request: Request, path: str):
-    logger.info(f"🔄 CORS 프리플라이트 요청: {request.method} {path}")
+async def preflight_handler(request: Request, path: str):
+    logger.info(f"🔄 CORS 프리플라이트 요청: {request.method} /{path}")
     
     origin = request.headers.get('origin', '')
-    response = JSONResponse(content={})
+    logger.info(f"📡 Origin: {origin}")
     
-    # 허용된 도메인 체크
-    allowed_domains = [
-        "https://www.eripotter.com",
-        "https://eripotter.com",
-        "http://localhost:3000",
-        "http://localhost:3001"
-    ]
+    # eripotter.com 도메인 또는 로컬 개발 환경 허용
+    allowed_pattern = r"https?://(.*\.)?eripotter\.com|https?://localhost:(3000|3001)|https?://192\.168\.\d+\.\d+:(3000|3001)"
     
-    if origin in allowed_domains or origin.endswith('.vercel.app'):
+    if re.match(allowed_pattern, origin):
+        logger.info(f"✅ Origin 허용: {origin}")
+        response = JSONResponse(
+            content={"message": "CORS preflight successful"},
+            status_code=200
+        )
         response.headers["Access-Control-Allow-Origin"] = origin
-        logger.info(f"✅ 도메인 허용: {origin}")
     else:
+        logger.warning(f"⚠️ 허용되지 않은 Origin: {origin}")
+        response = JSONResponse(
+            content={"message": "CORS preflight failed"},
+            status_code=200
+        )
         response.headers["Access-Control-Allow-Origin"] = "https://www.eripotter.com"
-        logger.warning(f"⚠️ 허용되지 않은 도메인: {origin}")
     
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+    # CORS 헤더 설정
+    response.headers["Access-Control-Allow-Methods"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
     response.headers["Access-Control-Max-Age"] = "86400"
     
+    # credentials 관련 헤더 (allow_credentials=False이므로 제외)
+    # response.headers["Access-Control-Allow-Credentials"] = "false"
+    
+    logger.info(f"📤 CORS 헤더 설정 완료: {dict(response.headers)}")
     return response
 
 # 로그인 엔드포인트 - Account Service로 프록시
@@ -139,8 +137,9 @@ async def login(request: LoginRequest, http_request: Request):
             content=response.json(),
             headers={
                 "Access-Control-Allow-Origin": http_request.headers.get("origin", "https://www.eripotter.com"),
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
+                "Access-Control-Allow-Methods": "*",
                 "Access-Control-Allow-Headers": "*",
+                "Access-Control-Expose-Headers": "*",
             }
         )
         
@@ -175,8 +174,9 @@ async def signup(request_data: SignUpRequest, http_request: Request):
             content=response.json(),
             headers={
                 "Access-Control-Allow-Origin": http_request.headers.get("origin", "https://www.eripotter.com"),
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
+                "Access-Control-Allow-Methods": "*",
                 "Access-Control-Allow-Headers": "*",
+                "Access-Control-Expose-Headers": "*",
             }
         )
         
@@ -198,4 +198,5 @@ if __name__ == "__main__":
     import uvicorn
     # 고정 포트 사용
     port = 8080
+    logger.info(f"🚀 Gateway API 시작 - 포트: {port}")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port)
