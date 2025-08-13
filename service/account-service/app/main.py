@@ -6,11 +6,12 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from app.router.director_router import director_router
-from app.router.executive_router import executive_router
-from app.router.manager_router import manager_router
-from app.router.supervisor_router import supervisor_router
-from app.router.worker_router import worker_router
+# from app.router.director_router import director_router
+# from app.router.executive_router import executive_router
+# from app.router.manager_router import manager_router
+# from app.router.supervisor_router import supervisor_router
+# from app.router.worker_router import worker_router
+from app.router.user_router import auth_router
 import uvicorn
 import logging
 import traceback
@@ -58,12 +59,13 @@ class SignUpRequest(BaseModel):
     password: str
     company_id: str = None
 
-# 라우터 포함
-app.include_router(director_router)
-app.include_router(executive_router)
-app.include_router(manager_router)
-app.include_router(supervisor_router)
-app.include_router(worker_router)
+# 라우터 포함 (존재하는 것만)
+# app.include_router(director_router)
+# app.include_router(executive_router)
+# app.include_router(manager_router)
+# app.include_router(supervisor_router)
+# app.include_router(worker_router)
+app.include_router(auth_router)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
