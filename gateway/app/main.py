@@ -148,6 +148,18 @@ async def options_handler(path: str, request: Request):
 
 # ---- 단일 프록시 유틸 ----
 async def _proxy(request: Request, upstream_base: str, rest: str):
+    # OPTIONS 요청은 여기서 바로 처리 (preflight)
+    if request.method == "OPTIONS":
+        logger.info(f"🔄 PREFLIGHT 처리 (프록시 레벨): {request.url.path}")
+
+        cors_headers = cors_headers_for(request)
+        if not cors_headers:
+            origin = request.headers.get("origin")
+            logger.warning(f"🚫 허용되지 않은 Origin (프록시 레벨): {origin}")
+            return Response(status_code=403)
+
+        return Response(status_code=204, headers=cors_headers)
+
     url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
     logger.info(f"🔗 프록시 요청: {request.method} {request.url.path} -> {url}")
 
@@ -206,33 +218,33 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
     )
 
 # ---- account-service 프록시 ----
-@app.api_route("/api/account", methods=["GET","POST","PUT","PATCH","DELETE"])
+@app.api_route("/api/account", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 async def account_root(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/")
 
-@app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+@app.api_route("/api/account/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 async def account_any(path: str, request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
 
 # ---- chatbot-service 프록시 ----
-@app.api_route("/api/chatbot", methods=["GET","POST","PUT","PATCH","DELETE"])
+@app.api_route("/api/chatbot", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 async def chatbot_root(request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, "/")
 
-@app.api_route("/api/chatbot/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+@app.api_route("/api/chatbot/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
 # 기존 경로 호환성 유지 (점진적 마이그레이션용)
-@app.post("/login")
+@app.api_route("/login", methods=["POST", "OPTIONS"])
 async def login_proxy(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
 
-@app.post("/signup")
+@app.api_route("/signup", methods=["POST", "OPTIONS"])
 async def signup_proxy(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/signup")
 
-@app.post("/user/login")
+@app.api_route("/user/login", methods=["POST", "OPTIONS"])
 async def user_login_proxy(request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, "/login")
 
