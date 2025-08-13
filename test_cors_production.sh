@@ -15,7 +15,7 @@ echo -e "\n"
 # 프리플라이트 시뮬레이션 (프로덕션)
 echo "🔄 프리플라이트 시뮬레이션 (프로덕션)"
 curl -i -X OPTIONS "$GATEWAY_URL/signup" \
-  -H "Origin: https://www.eripotter.com" \
+  -H "Origin: https://sme.eripotter.com" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: content-type, authorization"
 
@@ -24,7 +24,7 @@ echo -e "\n"
 # 실제 로그인 요청 (프로덕션)
 echo "🔐 로그인 요청 (프로덕션)"
 curl -i -X POST "$GATEWAY_URL/login" \
-  -H "Origin: https://www.eripotter.com" \
+  -H "Origin: https://sme.eripotter.com" \
   -H "Content-Type: application/json" \
   -d '{"user_id":"test","password":"123"}'
 
@@ -33,16 +33,16 @@ echo -e "\n"
 # 실제 회원가입 요청 (프로덕션)
 echo "📝 회원가입 요청 (프로덕션)"
 curl -i -X POST "$GATEWAY_URL/signup" \
-  -H "Origin: https://www.eripotter.com" \
+  -H "Origin: https://sme.eripotter.com" \
   -H "Content-Type: application/json" \
   -d '{"user_id":"test","password":"123","company_id":"test_company"}'
 
 echo -e "\n"
 
-# 서브도메인 테스트
-echo "🌐 서브도메인 프리플라이트 테스트"
+# www 서브도메인 테스트
+echo "🌐 www 서브도메인 프리플라이트 테스트"
 curl -i -X OPTIONS "$GATEWAY_URL/signup" \
-  -H "Origin: https://api.eripotter.com" \
+  -H "Origin: https://www.sme.eripotter.com" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: content-type, authorization"
 

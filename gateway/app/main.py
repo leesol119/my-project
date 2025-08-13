@@ -32,28 +32,41 @@ logger.info(f"🔧 CHATBOT_SERVICE_URL: {CHATBOT_SERVICE_URL}")
 # HTTP 클라이언트 설정
 http_client = httpx.AsyncClient(timeout=30.0)
 
-# CORS 설정 - 프로덕션/로컬/도커 네트워크 Origin 허용
-ALLOWED_ORIGINS = [
-    "https://www.eripotter.com",
-    "https://eripotter.com",
-    "http://localhost:3000",
+# CORS: 운영 도메인만 허용 (+개발용은 필요시 추가)
+WHITELIST = {
+    "https://sme.eripotter.com",
+    "https://www.sme.eripotter.com",              # www 도메인도 허용
+    "http://localhost:3000", 
+    "http://localhost:5173",                      # 로컬 개발
     "http://127.0.0.1:3000",
-    "http://frontend:3000",
-    "http://192.168.0.99:3000",
-    "http://192.168.1.99:3000"
-]
+    "http://frontend:3000",                       # Docker 네트워크
+    # "https://sme-eripotter-com.vercel.app",     # Vercel 프리뷰를 쓰면 주석 해제
+}
 
-# CORS 미들웨어 (1번째 실행 - 역순 적용)
+# 미들웨어(기본 방어막) - allow_origins는 넓게 두되 credentials 고려
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"^https://([a-z0-9-]+\.)*eripotter\.com$|^https?://localhost:(3000|3001)$|^https?://192\.168\.\d+\.\d+:(3000|3001)$",
-    allow_credentials=True,  # 쿠키/JWT 사용 예정
+    allow_origins=list(WHITELIST),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=86400,
 )
+
+def cors_headers_for(request: Request):
+    """요청 Origin이 화이트리스트에 있으면 해당 Origin을 그대로 반환."""
+    origin = request.headers.get("origin")
+    if origin in WHITELIST:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Vary": "Origin",  # 캐시 안정성
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
+        }
+    # 화이트리스트 밖이면 CORS 헤더 미부착(브라우저가 차단)
+    return {}
 
 # 인증 미들웨어 (2번째 실행 - 역순 적용)
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -88,23 +101,16 @@ async def preflight_handler(path: str, request: Request):
     
     logger.info(f"🔄 PREFLIGHT 처리: {path} origin={origin} method={request_method} headers={request_headers}")
     
-    # Origin 검증
-    if origin and origin not in ALLOWED_ORIGINS:
-        # 정규식으로 추가 검증
-        import re
-        if not re.match(r"^https://([a-z0-9-]+\.)*eripotter\.com$|^https?://localhost:(3000|3001)$|^https?://192\.168\.\d+\.\d+:(3000|3001)$", origin):
-            logger.warning(f"🚫 허용되지 않은 Origin: {origin}")
-            return Response(status_code=403)
+    # CORS 헤더 생성
+    cors_headers = cors_headers_for(request)
+    
+    if not cors_headers:
+        logger.warning(f"🚫 허용되지 않은 Origin: {origin}")
+        return Response(status_code=403)
     
     return Response(
         status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": request_headers,
-            "Access-Control-Max-Age": "86400",
-            "Vary": "Origin"
-        }
+        headers=cors_headers
     )
 
 # 범용 프록시 함수
