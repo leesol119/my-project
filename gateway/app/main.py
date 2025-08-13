@@ -276,7 +276,7 @@ async def direct_login(request: Request):
         import json
         body_data = json.loads(body.decode())
         user_id = body_data.get("user_id")
-        password = body_data.get("user_pw")  # frontend에서 user_pw로 보내고 있음
+        password = body_data.get("user_pw") or body_data.get("password")  # frontend에서 user_pw로 보내고 있음
         
         logger.info(f"🔍 파싱된 데이터: user_id={user_id}, password_provided={bool(password)}")
         

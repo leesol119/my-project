@@ -36,7 +36,12 @@ app.add_middleware(
 # Pydantic 모델
 class LoginRequest(BaseModel):
     user_id: str
-    password: str
+    password: str | None = None
+    user_pw: str | None = None
+    
+    def get_password(self) -> str:
+        """password 또는 user_pw 중 하나를 반환"""
+        return self.password or self.user_pw or ""
 
 class SignUpRequest(BaseModel):
     user_id: str
@@ -74,10 +79,11 @@ async def login(request: LoginRequest, http_request: Request):
     
     try:
         # 1. 입력값 검증
-        logger.info(f"📋 로그인 입력값 검증: user_id={request.user_id}, password_length={len(request.password) if request.password else 0}")
+        password = request.get_password()
+        logger.info(f"📋 로그인 입력값 검증: user_id={request.user_id}, password_length={len(password) if password else 0}")
         
-        if not request.user_id or not request.password:
-            logger.warning(f"❌ 로그인 실패: 필수 입력값 누락 - user_id={request.user_id}, password_provided={bool(request.password)}")
+        if not request.user_id or not password:
+            logger.warning(f"❌ 로그인 실패: 필수 입력값 누락 - user_id={request.user_id}, password_provided={bool(password)}")
             raise HTTPException(status_code=400, detail="사용자 ID와 비밀번호가 필요합니다")
         
         # 2. 로그인 처리 (실제로는 데이터베이스 확인)
